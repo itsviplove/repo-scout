@@ -1,0 +1,42 @@
+{
+  "repo": {
+    "fullName": "browser-use/browser-use",
+    "url": "https://github.com/browser-use/browser-use",
+    "description": "🌐 Make websites accessible for AI agents. Automate tasks online with ease.",
+    "stars": 92250,
+    "forks": 10471,
+    "language": "Python",
+    "topics": [
+      "ai-agents",
+      "ai-tools",
+      "browser-automation",
+      "browser-use",
+      "llm",
+      "playwright",
+      "python"
+    ],
+    "pushedAt": "2026-05-05T16:05:03Z",
+    "capabilities": [
+      "developer tooling",
+      "browser automation",
+      "agent orchestration",
+      "workflow automation"
+    ],
+    "keywords": [
+      "browser",
+      "use",
+      "agent",
+      "cloud",
+      "browser-use",
+      "run",
+      "api",
+      "key"
+    ],
+    "scores": {
+      "freshness": 10,
+      "popularity": 9.9,
+      "integration": 10
+    }
+  },
+  "readmeCharsAnalyzed": 12218
+}
