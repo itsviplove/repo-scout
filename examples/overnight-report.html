@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repo Scout Report</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#141b34; --panel2:#0f1730; --text:#eef2ff; --muted:#9fb0d9; --accent:#7dd3fc; --good:#86efac; --warn:#fcd34d; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Segoe UI, Inter, Arial, sans-serif; background:linear-gradient(180deg, #0b1020, #111936 55%, #0b1020); color:var(--text); }
+    .wrap { max-width:1180px; margin:0 auto; padding:32px 20px 56px; }
+    .hero, .panel { background:rgba(20,27,52,.92); border:1px solid rgba(159,176,217,.18); border-radius:18px; box-shadow:0 12px 50px rgba(0,0,0,.24); }
+    .hero { padding:28px; margin-bottom:20px; }
+    h1, h2, h3, p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .stats { grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); margin:18px 0; }
+    .stat { padding:16px; background:var(--panel2); border-radius:14px; border:1px solid rgba(159,176,217,.12); }
+    .num { font-size:28px; font-weight:700; }
+    .badges, .repo-tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .badge { background:rgba(125,211,252,.12); color:#d9f4ff; border:1px solid rgba(125,211,252,.2); padding:6px 10px; border-radius:999px; font-size:13px; }
+    .section { margin-top:18px; }
+    .ideas { grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); }
+    .panel { padding:18px; }
+    ol { padding-left:18px; }
+    a { color:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(159,176,217,.12); vertical-align:top; }
+    .score { color:var(--good); font-weight:700; }
+    .repo-name { font-weight:600; }
+    .small { font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Repo Scout Report</h1>
+      <p class="muted">Topic: <strong>ai agents automation developer tools</strong></p>
+      <div class="grid stats">
+        <div class="stat"><div class="num">7</div><div class="muted">Repos analyzed</div></div>
+        <div class="stat"><div class="num">1</div><div class="muted">Ideas generated</div></div>
+        <div class="stat"><div class="num">9</div><div class="muted">Top score</div></div>
+        <div class="stat"><div class="num">5</div><div class="muted">Languages represented</div></div>
+      </div>
+      <div class="badges">
+        <span class="badge">Rust</span><span class="badge">Swift</span><span class="badge">Objective-C</span><span class="badge">TypeScript</span><span class="badge">C++</span>
+      </div>
+      <p class="muted small section">Generated at 2026-05-05T23:11:44.180Z · topic pack agents</p>
+    </section>
+
+    <section class="panel section">
+      <h2>Capability coverage</h2>
+      <div class="badges">
+        <span class="badge">agent orchestration · 7</span><span class="badge">developer tooling · 7</span><span class="badge">workflow automation · 7</span><span class="badge">data visualization · 1</span><span class="badge">memory / knowledge · 1</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Ranked ideas</h2>
+      <div class="grid ideas">
+        
+          <article class="panel">
+            <h3>1. Workflow Coding Memory Copilot</h3>
+            <p class="score">Overall 9/10</p>
+            <p class="muted small">Theme: automation, orchestration, workflows</p>
+            <p>A learns repo-specific lessons from coding sessions and injects the right context before future work.</p>
+            <p class="small"><strong>Repos:</strong> <a href="https://github.com/golutra/golutra">golutra/golutra</a> + <a href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a> + <a href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a></p>
+            <p class="small"><strong>Why:</strong> golutra/golutra brings agent orchestration + developer tooling; AvdLee/RocketSimApp brings developer tooling + agent orchestration; warpdot-dev/composio brings workflow automation + developer tooling</p>
+            <div class="repo-tags"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span><span class="badge">data visualization</span><span class="badge">memory / knowledge</span></div>
+            <p class="small section"><strong>Score mix:</strong> novelty 9/10 · buildability 9.5/10 · usefulness 8.9/10</p>
+            <ol>
+              <li>Index repo docs and prior logs</li><li>Extract conventions/mistakes/test commands</li><li>Retrieve relevant lessons per task</li><li>Generate a compact context pack</li>
+            </ol>
+          </article>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Repository snapshot</h2>
+      <table>
+        <thead>
+          <tr><th>Repo</th><th>Stars</th><th>Language</th><th>Capabilities</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><a class="repo-name" href="https://github.com/golutra/golutra">golutra/golutra</a><div class="muted small">Multi-agent AI orchestration platform for automation, workflows, and developer tools. Golutra transforms Codex, Claude Code, and OpenClaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and AI productivity workspace.</div></td>
+              <td>3378</td>
+              <td>Rust</td>
+              <td>agent orchestration, developer tooling, workflow automation</td>
+              <td>2026-05-01</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a><div class="muted small">RocketSim — 30+ tools for Xcode's iOS Simulator. Testing, debugging, network monitoring, captures, accessibility, app actions, and AI agent automation via the RocketSim CLI. Used by 80k+ developers.</div></td>
+              <td>737</td>
+              <td>Swift</td>
+              <td>developer tooling, agent orchestration, workflow automation, data visualization</td>
+              <td>2026-04-30</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/witchan/ios-mcp">witchan/ios-mcp</a><div class="muted small">iOS MCP: MCP management tool for jailbroken iPhones, enabling developers and AI agents to inspect and control devices.</div></td>
+              <td>259</td>
+              <td>Objective-C</td>
+              <td>agent orchestration, workflow automation, developer tooling</td>
+              <td>2026-05-04</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a><div class="muted small">typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers</div></td>
+              <td>236</td>
+              <td>TypeScript</td>
+              <td>workflow automation, developer tooling, agent orchestration, memory / knowledge</td>
+              <td>2026-05-01</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/Julpygo/Claude-Code-AI-Design">Julpygo/Claude-Code-AI-Design</a><div class="muted small">Claude Design Anthropic Tool Download April 2026 Figma to Code AI Agent Research Preview Claude Code CLI Integration React 19 Tailwind v4 Support Model Context Protocol MCP Server Setup Design Systems Automation UI UX Prototyping Next.js Component Generation Best Developer Tools 2026 Free Tutorial</div></td>
+              <td>230</td>
+              <td>C++</td>
+              <td>developer tooling, agent orchestration, workflow automation</td>
+              <td>2026-04-29</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/lukiIabs/skills">lukiIabs/skills</a><div class="muted small">Cursor Claude MCP SKILL.md TypeScript Node.js AI agent prompts automation developer tooling IDE productivity skills repository open source</div></td>
+              <td>153</td>
+              <td>TypeScript</td>
+              <td>developer tooling, agent orchestration, workflow automation</td>
+              <td>2026-05-01</td>
+            </tr>
+            <tr>
+              <td><a class="repo-name" href="https://github.com/tornikebolokadze1-cyber/awesome-ai-pulse-georgia">tornikebolokadze1-cyber/awesome-ai-pulse-georgia</a><div class="muted small">A curated collection of cutting-edge AI agent frameworks, developer tools, and automation resources — by AI Pulse Georgia</div></td>
+              <td>106</td>
+              <td>TypeScript</td>
+              <td>agent orchestration, developer tooling, workflow automation</td>
+              <td>2026-05-04</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>
