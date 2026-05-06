@@ -1,0 +1,31 @@
+{
+  "name": "repo-scout",
+  "version": "0.1.0",
+  "description": "GitHub Repo Scout: discover interesting repos and combine them into buildable project ideas.",
+  "type": "module",
+  "bin": {
+    "repo-scout": "./bin/repo-scout.js"
+  },
+  "scripts": {
+    "start": "node ./bin/repo-scout.js",
+    "ideas": "node ./bin/repo-scout.js ideas",
+    "search": "node ./bin/repo-scout.js search",
+    "explain": "node ./bin/repo-scout.js explain",
+    "report": "node ./bin/repo-scout.js report",
+    "packs": "node ./bin/repo-scout.js packs",
+    "smoke": "node ./bin/repo-scout.js ideas \"ai agents automation\" --limit 8 --ideas 3 --no-readme",
+    "smoke:report": "node ./bin/repo-scout.js report --topic-pack agents --limit 8 --ideas 3 --no-readme --out ./examples/overnight-report.html"
+  },
+  "keywords": [
+    "github",
+    "ideas",
+    "ai",
+    "developer-tools",
+    "cli"
+  ],
+  "author": "Kittu / OpenClaw",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
