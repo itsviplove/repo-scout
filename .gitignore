@@ -1,0 +1,4 @@
+node_modules/
+.repo-scout-cache/
+.env
+*.log
