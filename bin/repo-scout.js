@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '0.9.0';
+const VERSION = '1.0.0';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = path.resolve(SCRIPT_DIR, '..');
 const CACHE_DIR = path.join(PROJECT_DIR, '.repo-scout-cache');
@@ -98,7 +98,7 @@ const IDEA_ARCHETYPES = [
 ];
 
 function usage() {
-  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout daily-scout [--packs agents,devtools,browser] [--ideas 3] [--limit 8] [--days 30] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout weekly-scout [--days 7] [--limit 3] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout schedule-preview [--days 7] [--packs agents,devtools,browser]\n  repo-scout trending [topic] [--limit 10] [--days 30] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief|daily-scout|weekly-scout] [--topic topic] [--format full|compact|table]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout library top-repos [--limit 10] [--topic topic]\n  repo-scout library ideas [--limit 10] [--topic topic]\n  repo-scout library recurring-repos [--limit 10] [--topic topic]\n  repo-scout library topics [--limit 10]\n  repo-scout library idea-families [--limit 10] [--days 60]\n  repo-scout library opportunity-themes [--limit 10] [--days 60]\n  repo-scout bookmark add owner/repo [--note text]\n  repo-scout bookmark refresh owner/repo\n  repo-scout bookmark refresh --all\n  repo-scout bookmark list\n  repo-scout bookmark movers [--limit 10]\n  repo-scout spec [--latest] [--topic topic] [--idea 1]\n  repo-scout openclaw-prompt [--latest] [--topic topic] [--idea 1]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation" --format table\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout daily-scout --ideas 3 --style discord\n  repo-scout weekly-scout --days 7 --style discord\n  repo-scout schedule-preview --days 7\n  repo-scout trending --topic-pack agents --days 14\n  repo-scout history --limit 10 --format compact\n  repo-scout diff --latest --kind report\n  repo-scout library top-repos --limit 12\n  repo-scout library recurring-repos --limit 12\n  repo-scout library idea-families --limit 8\n  repo-scout library opportunity-themes --limit 8\n  repo-scout bookmark add browser-use/browser-use --note "watch this for agent browsing"\n  repo-scout bookmark refresh --all\n  repo-scout bookmark movers --limit 5\n  repo-scout spec --latest --idea 1\n  repo-scout openclaw-prompt --latest --idea 1\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
+  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout daily-scout [--packs agents,devtools,browser] [--ideas 3] [--limit 8] [--days 30] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout weekly-scout [--days 7] [--limit 3] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout schedule-preview [--days 7] [--packs agents,devtools,browser]\n  repo-scout trending [topic] [--limit 10] [--days 30] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief|daily-scout|weekly-scout] [--topic topic] [--format full|compact|table]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout library top-repos [--limit 10] [--topic topic]\n  repo-scout library ideas [--limit 10] [--topic topic]\n  repo-scout library recurring-repos [--limit 10] [--topic topic]\n  repo-scout library topics [--limit 10]\n  repo-scout library idea-families [--limit 10] [--days 60]\n  repo-scout library opportunity-themes [--limit 10] [--days 60]\n  repo-scout library startup-opportunities [--limit 10] [--days 60]\n  repo-scout thesis [--latest] [--topic topic] [--idea 1]\n  repo-scout dashboard [--days 60] [--limit 8] [--preview-days 7] [--packs agents,devtools,browser] [--out examples/repo-scout-dashboard.html]\n  repo-scout bookmark add owner/repo [--note text]\n  repo-scout bookmark refresh owner/repo\n  repo-scout bookmark refresh --all\n  repo-scout bookmark list\n  repo-scout bookmark movers [--limit 10]\n  repo-scout spec [--latest] [--topic topic] [--idea 1]\n  repo-scout openclaw-prompt [--latest] [--topic topic] [--idea 1]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation" --format table\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout daily-scout --ideas 3 --style discord\n  repo-scout weekly-scout --days 7 --style discord\n  repo-scout schedule-preview --days 7\n  repo-scout trending --topic-pack agents --days 14\n  repo-scout history --limit 10 --format compact\n  repo-scout diff --latest --kind report\n  repo-scout library top-repos --limit 12\n  repo-scout library recurring-repos --limit 12\n  repo-scout library idea-families --limit 8\n  repo-scout library opportunity-themes --limit 8\n  repo-scout library startup-opportunities --limit 8\n  repo-scout thesis --latest --idea 1\n  repo-scout dashboard --days 60 --preview-days 7\n  repo-scout bookmark add browser-use/browser-use --note "watch this for agent browsing"\n  repo-scout bookmark refresh --all\n  repo-scout bookmark movers --limit 5\n  repo-scout spec --latest --idea 1\n  repo-scout openclaw-prompt --latest --idea 1\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
 }
 
 function parseArgs(argv) {
@@ -362,6 +362,8 @@ function normalizeIdeaForHistory(idea) {
     whyUnique: idea.whyUnique,
     opportunityTheme: idea.opportunityTheme,
     similarPastIdeas: idea.similarPastIdeas,
+    startupThesis: idea.startupThesis,
+    opportunityVerdict: idea.opportunityVerdict,
     roadmap: idea.roadmap,
     scores: idea.scores,
     key: idea.key,
@@ -1066,9 +1068,10 @@ function printIdea(idea, i) {
   if (idea.differentiation) console.log(`   Differentiation: ${idea.differentiation}`);
   if (idea.whyUnique) console.log(`   Why unique: ${idea.whyUnique}`);
   if (idea.similarPastIdeas?.length) console.log(`   Similar past ideas: ${idea.similarPastIdeas.join(' | ')}`);
+  if (idea.startupThesis?.targetUser) console.log(`   Startup thesis: ${idea.startupThesis.summary}`);
   console.log(`   Pitch: ${idea.pitch}`);
   console.log(`   Why: ${idea.why}`);
-  console.log(`   Scores: novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10, confidence ${idea.scores.confidence}/10, uniqueness ${idea.scores.uniqueness ?? 'n/a'}/10`);
+  console.log(`   Scores: novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10, confidence ${idea.scores.confidence}/10, uniqueness ${idea.scores.uniqueness ?? 'n/a'}/10, opportunity ${idea.scores.opportunity ?? 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`);
   console.log(`   Difficulty: ${idea.difficulty} | Risk: ${idea.risk}`);
   console.log(`   MVP:`);
   for (const step of idea.mvp) console.log(`   - ${step}`);
@@ -1097,9 +1100,11 @@ function ideasMarkdown(topic, profiles, ideas) {
     if (idea.differentiation) lines.push(`- **Differentiation:** ${idea.differentiation}`);
     if (idea.whyUnique) lines.push(`- **Why unique:** ${idea.whyUnique}`);
     if (idea.similarPastIdeas?.length) lines.push(`- **Similar past ideas:** ${idea.similarPastIdeas.join('; ')}`);
+    if (idea.startupThesis?.summary) lines.push(`- **Startup thesis:** ${idea.startupThesis.summary}`);
     lines.push(`- **Scores:** novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10, confidence ${idea.scores.confidence}/10`);
     if (idea.scores.uniqueness !== undefined) lines.push(`- **Uniqueness:** ${idea.scores.uniqueness}/10`);
     if (idea.scores.whyNow !== undefined) lines.push(`- **Why now:** ${idea.scores.whyNow}/10`);
+    if (idea.scores.opportunity !== undefined) lines.push(`- **Opportunity score:** ${idea.scores.opportunity}/10 (${idea.opportunityVerdict || 'n/a'})`);
     lines.push(`- **Difficulty:** ${idea.difficulty}`);
     lines.push(`- **Risk:** ${idea.risk}`);
     lines.push(`- **Pitch:** ${idea.pitch}`);
@@ -1777,7 +1782,9 @@ function buildScoutBrief(topic, profiles, ideas, trending = [], llmMeta = null) 
     lines.push(`   - market: ${idea.marketAngle}`);
     lines.push(`   - use case: ${idea.useCase || 'n/a'}`);
     lines.push(`   - uniqueness: ${idea.scores.uniqueness ?? 'n/a'}/10`);
+    lines.push(`   - opportunity: ${idea.scores.opportunity ?? 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`);
     lines.push(`   - why unique: ${idea.whyUnique || 'n/a'}`);
+    if (idea.startupThesis?.summary) lines.push(`   - thesis: ${idea.startupThesis.summary}`);
     lines.push(`   - difficulty: ${idea.difficulty}`);
     lines.push(`   - risk: ${idea.risk}`);
     lines.push(`   - opportunity theme: ${idea.opportunityTheme || 'n/a'}`);
@@ -1881,6 +1888,71 @@ function ideaFamilyKey(idea = {}) {
   return families.length ? families.join(' + ') : 'mixed';
 }
 
+function titleFromTopic(topic = '') {
+  const token = topKeywords(topic, 1)[0] || String(topic || '').split(/\s+/).find(Boolean) || 'workflow';
+  return titleCase(String(token).replace(/-/g, ' '));
+}
+
+function buildStartupThesis(idea = {}) {
+  const targetUser = idea.useCase || idea.marketAngle || 'teams with repetitive research and execution workflows';
+  const familyText = (idea.families || []).join(', ') || 'automation';
+  const repoText = (idea.repos || []).map(repo => repo.name.split('/').pop()).slice(0, 3).join(', ');
+  const themeTitle = titleFromTopic(idea.opportunityTheme || idea.theme || idea.title);
+  const launchUser = String(targetUser).replace(/^internal /i, '').replace(/ product$/i, ' workflows').trim();
+  return {
+    summary: `${idea.title} turns ${themeTitle.toLowerCase()} momentum into a focused startup wedge for ${targetUser}.`,
+    targetUser,
+    painPoint: `Current ${familyText} workflows are fragmented, repetitive, and require too much manual context switching.`,
+    whyNow: Number(idea.scores?.whyNow || 0) >= 7
+      ? 'Open-source building blocks now have enough momentum and maturity to ship a credible product quickly.'
+      : 'The tooling stack is ready enough now that a focused product can out-execute generic automation suites.',
+    wedge: `Ship one opinionated end-to-end workflow around ${repoText || 'the strongest source repos'} before expanding breadth.`,
+    moat: `Differentiate through workflow packaging, memory, and execution quality rather than just raw model access.`,
+    businessModel: idea.marketAngle?.toLowerCase().includes('developer')
+      ? 'Usage-based or seat-based SaaS for developer teams.'
+      : 'Subscription workflow software with premium automation and team features.',
+    launchMotion: `Start with teams already trying to run ${launchUser} and validate the first workflow with them quickly.`,
+    firstMilestone: formatRoadmapStart(idea),
+  };
+}
+
+function opportunityVerdict(score = 0) {
+  if (score >= 8.5) return 'high-conviction';
+  if (score >= 7) return 'promising';
+  return 'watchlist';
+}
+
+function applyOpportunityScoring(idea = {}) {
+  const confidence = Number(idea.scores?.confidence || 0);
+  const uniqueness = Number(idea.scores?.uniqueness || 0);
+  const whyNow = Number(idea.scores?.whyNow || idea.scores?.marketReadiness || 0);
+  const buildability = Number(idea.scores?.buildability || 0);
+  const familyHeat = Number(idea.scores?.familyHeat || 0);
+  const overall = Number(idea.scores?.overall || 0);
+  const timing = round(Math.min(10, whyNow * 0.7 + confidence * 0.3));
+  const repeatStrength = round(Math.min(10, familyHeat * 0.6 + uniqueness * 0.4));
+  const repoQuality = round(Math.min(10, confidence * 0.65 + Number(idea.scores?.marketReadiness || 0) * 0.35));
+  const opportunity = round(Math.min(10, overall * 0.28 + repoQuality * 0.24 + timing * 0.18 + buildability * 0.15 + repeatStrength * 0.15));
+  return {
+    ...idea,
+    startupThesis: buildStartupThesis(idea),
+    scores: {
+      ...idea.scores,
+      timing,
+      repeatStrength,
+      repoQuality,
+      opportunity,
+    },
+    opportunityVerdict: opportunityVerdict(opportunity),
+  };
+}
+
+function finalRankIdeas(ideas = []) {
+  return ideas
+    .map(applyOpportunityScoring)
+    .sort((a, b) => (Number(b.scores?.opportunity || 0) - Number(a.scores?.opportunity || 0)) || (Number(b.scores?.overall || 0) - Number(a.scores?.overall || 0)));
+}
+
 function normalizeThemeTokens(idea = {}) {
   const fromTheme = String(idea.theme || '').split(',').map(item => item.trim().toLowerCase()).filter(Boolean);
   const fromTitle = topKeywords(String(idea.title || ''), 3);
@@ -1902,9 +1974,12 @@ async function recentIdeaHistory({ days = 60, kinds = ['ideas', 'brief', 'report
           families: idea.families || [],
           familyKey: ideaFamilyKey(idea),
           themeTokens: normalizeThemeTokens(idea),
+          opportunityTheme: idea.opportunityTheme || '',
           topic: run.topic,
           createdAt: run.createdAt,
           overall: idea.scores?.overall || 0,
+          opportunity: idea.scores?.opportunity || 0,
+          verdict: idea.opportunityVerdict || '',
         });
       }
     } catch {
@@ -1958,6 +2033,39 @@ async function libraryOpportunityThemes({ limit = 10, days = 60 } = {}) {
       examples: [...item.examples].slice(0, 4).join(' | '),
     }))
     .sort((a, b) => (b.appearances - a.appearances) || (b.avgOverall - a.avgOverall))
+    .slice(0, limit);
+}
+
+async function libraryStartupOpportunities({ limit = 10, days = 60 } = {}) {
+  const history = await recentIdeaHistory({ days });
+  const grouped = new Map();
+  for (const item of history) {
+    const key = item.opportunityTheme || item.familyKey || item.title;
+    const current = grouped.get(key) || {
+      opportunity: key,
+      appearances: 0,
+      avgOpportunity: 0,
+      avgOverall: 0,
+      lastSeen: item.createdAt,
+      examples: new Set(),
+    };
+    current.appearances += 1;
+    current.avgOpportunity += item.opportunity || item.overall || 0;
+    current.avgOverall += item.overall || 0;
+    if (new Date(item.createdAt) > new Date(current.lastSeen)) current.lastSeen = item.createdAt;
+    current.examples.add(item.title);
+    grouped.set(key, current);
+  }
+  return [...grouped.values()]
+    .map(item => ({
+      opportunity: item.opportunity,
+      appearances: item.appearances,
+      avgOpportunity: round(item.avgOpportunity / Math.max(1, item.appearances)),
+      avgOverall: round(item.avgOverall / Math.max(1, item.appearances)),
+      lastSeen: item.lastSeen,
+      examples: [...item.examples].slice(0, 4).join(' | '),
+    }))
+    .sort((a, b) => (b.avgOpportunity - a.avgOpportunity) || (b.appearances - a.appearances) || (b.avgOverall - a.avgOverall))
     .slice(0, limit);
 }
 
@@ -2126,6 +2234,7 @@ function pickIdeaFromRun(run, opts = {}) {
 }
 
 function buildIdeaSpec(idea, run) {
+  const thesis = idea.startupThesis || buildStartupThesis(idea);
   const lines = [
     `# Product Spec: ${idea.title}`,
     '',
@@ -2137,7 +2246,18 @@ function buildIdeaSpec(idea, run) {
     `- Market angle: ${idea.marketAngle}`,
     `- Use case: ${idea.useCase || 'not specified'}`,
     `- Opportunity theme: ${idea.opportunityTheme || 'not specified'}`,
+    `- Opportunity score: ${idea.scores?.opportunity || 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`,
     `- Why unique: ${idea.whyUnique || 'not specified'}`,
+    '',
+    '## Startup thesis',
+    `- Summary: ${thesis.summary || 'n/a'}`,
+    `- Target user: ${thesis.targetUser || 'n/a'}`,
+    `- Pain point: ${thesis.painPoint || 'n/a'}`,
+    `- Why now: ${thesis.whyNow || 'n/a'}`,
+    `- Wedge: ${thesis.wedge || 'n/a'}`,
+    `- Moat: ${thesis.moat || 'n/a'}`,
+    `- Business model: ${thesis.businessModel || 'n/a'}`,
+    `- Launch motion: ${thesis.launchMotion || 'n/a'}`,
     '',
     '## Pitch',
     idea.pitch || '',
@@ -2148,19 +2268,20 @@ function buildIdeaSpec(idea, run) {
     '## Differentiation',
     idea.differentiation || '',
     '',
+    '## Execution handoff',
+    `- First milestone: ${thesis.firstMilestone || 'n/a'}`,
+    '- MVP build order:',
+    ...(idea.mvp || []).map((step, index) => `  ${index + 1}. ${step}`),
+    '- 2-week execution frame:',
+    ...((idea.roadmap?.week1 || []).map(step => `  - Week 1: ${step}`)),
+    ...((idea.roadmap?.week2 || []).map(step => `  - Week 2: ${step}`)),
+    ...((idea.roadmap?.next || []).map(step => `  - Next: ${step}`)),
+    '',
     '## Similar past ideas',
     ...((idea.similarPastIdeas || []).length ? idea.similarPastIdeas.map(item => `- ${item}`) : ['- None captured yet']),
     '',
     '## Risks',
     idea.risk || '',
-    '',
-    '## Suggested MVP',
-    ...(idea.mvp || []).map(step => `- ${step}`),
-    '',
-    '## Suggested roadmap',
-    ...((idea.roadmap?.week1 || []).map(step => `- Week 1: ${step}`)),
-    ...((idea.roadmap?.week2 || []).map(step => `- Week 2: ${step}`)),
-    ...((idea.roadmap?.next || []).map(step => `- Next: ${step}`)),
     '',
     '## Source repos',
     ...(idea.repos || []).map(repo => `- ${repo.name} — ${repo.url}`),
@@ -2178,6 +2299,11 @@ function buildOpenClawPrompt(idea, run) {
     `Market angle: ${idea.marketAngle || 'n/a'}`,
     `Why unique: ${idea.whyUnique || 'n/a'}`,
     `Opportunity theme: ${idea.opportunityTheme || 'n/a'}`,
+    `Opportunity score: ${idea.scores?.opportunity || 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`,
+    `Startup thesis: ${idea.startupThesis?.summary || 'n/a'}`,
+    `Target user: ${idea.startupThesis?.targetUser || 'n/a'}`,
+    `Pain point: ${idea.startupThesis?.painPoint || 'n/a'}`,
+    `Why now: ${idea.startupThesis?.whyNow || 'n/a'}`,
     `Differentiation: ${idea.differentiation || 'n/a'}`,
     `Risk: ${idea.risk || 'n/a'}`,
     '',
@@ -2191,8 +2317,127 @@ function buildOpenClawPrompt(idea, run) {
     '4. technical architecture using the source repos',
     '5. execution plan in 2-week milestones',
     '6. biggest product and technical risks with mitigations',
-    '7. how this compares with similar past ideas and how to keep it differentiated',
+    '7. launch wedge, ICP, and pricing motion',
+    '8. how this compares with similar past ideas and how to keep it differentiated',
   ].join('\n');
+}
+
+function buildStartupThesisMarkdown(idea, run) {
+  const thesis = idea.startupThesis || buildStartupThesis(idea);
+  return [
+    `# Startup Thesis: ${idea.title}`,
+    '',
+    `- Source run: ${run.id}`,
+    `- Topic: ${run.topic}`,
+    `- Opportunity score: ${idea.scores?.opportunity || 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`,
+    `- Theme: ${idea.opportunityTheme || 'n/a'}`,
+    '',
+    '## Thesis summary',
+    thesis.summary || 'n/a',
+    '',
+    '## ICP',
+    thesis.targetUser || 'n/a',
+    '',
+    '## Pain point',
+    thesis.painPoint || 'n/a',
+    '',
+    '## Why now',
+    thesis.whyNow || 'n/a',
+    '',
+    '## Wedge',
+    thesis.wedge || 'n/a',
+    '',
+    '## Moat',
+    thesis.moat || 'n/a',
+    '',
+    '## Business model',
+    thesis.businessModel || 'n/a',
+    '',
+    '## Launch motion',
+    thesis.launchMotion || 'n/a',
+    '',
+    '## First milestone',
+    thesis.firstMilestone || 'n/a',
+  ].join('\n');
+}
+
+function buildDashboardHtml(summary = {}) {
+  const topOpportunities = summary.topOpportunities || [];
+  const recurringRepos = summary.recurringRepos || [];
+  const themes = summary.opportunityThemes || [];
+  const families = summary.ideaFamilies || [];
+  const recentRuns = summary.recentRuns || [];
+  const schedule = summary.schedule || [];
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repo Scout Dashboard</title>
+  <style>
+    :root { color-scheme: dark; --bg:#09101d; --panel:#121a30; --panel2:#0c1428; --text:#eef2ff; --muted:#9cb0d9; --accent:#7dd3fc; --good:#86efac; }
+    body { margin:0; font-family:Segoe UI, Inter, Arial, sans-serif; background:linear-gradient(180deg,#09101d,#0e1730 60%,#09101d); color:var(--text); }
+    .wrap { max-width:1220px; margin:0 auto; padding:28px 18px 48px; }
+    .hero,.panel { background:rgba(18,26,48,.92); border:1px solid rgba(156,176,217,.16); border-radius:18px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+    .hero { padding:24px; margin-bottom:18px; }
+    .panel { padding:18px; }
+    h1,h2,h3,p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .stats { grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-top:14px; }
+    .stat { padding:14px; background:var(--panel2); border-radius:14px; }
+    .num { font-size:26px; font-weight:700; }
+    .cols { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+    .card { background:rgba(12,20,40,.9); border:1px solid rgba(156,176,217,.12); border-radius:14px; padding:14px; }
+    .badge { display:inline-block; margin:4px 6px 0 0; padding:5px 10px; border-radius:999px; background:rgba(125,211,252,.12); border:1px solid rgba(125,211,252,.18); color:#d8f3ff; font-size:12px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(156,176,217,.12); vertical-align:top; }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Repo Scout Startup Dashboard</h1>
+      <p class="muted">High-level opportunity review for the current scouting library and recent runs.</p>
+      <div class="grid stats">
+        <div class="stat"><div class="num">${topOpportunities.length}</div><div class="muted">Top opportunities</div></div>
+        <div class="stat"><div class="num">${recurringRepos.length}</div><div class="muted">Recurring repos</div></div>
+        <div class="stat"><div class="num">${themes.length}</div><div class="muted">Hot themes</div></div>
+        <div class="stat"><div class="num">${recentRuns.length}</div><div class="muted">Recent runs</div></div>
+      </div>
+    </section>
+
+    <section class="grid cols">
+      <article class="panel">
+        <h2>Top startup opportunities</h2>
+        ${topOpportunities.length ? topOpportunities.map(item => `<div class="card"><h3>${escapeHtml(item.opportunity)}</h3><p class="muted">avg opportunity ${item.avgOpportunity}/10 · appearances ${item.appearances}</p><p>${escapeHtml(item.examples)}</p></div>`).join('') : '<p class="muted">No startup opportunities captured yet.</p>'}
+      </article>
+      <article class="panel">
+        <h2>Opportunity memory</h2>
+        <div class="card"><h3>Idea families</h3>${families.length ? `<ul>${families.map(item => `<li>${escapeHtml(item.family)} · ${item.appearances} hits · avg ${item.avgOverall}/10</li>`).join('')}</ul>` : '<p class="muted">No family clusters yet.</p>'}</div>
+        <div class="card" style="margin-top:12px;"><h3>Hot themes</h3>${themes.length ? `<ul>${themes.map(item => `<li>${escapeHtml(item.theme)} · ${item.appearances} hits · avg ${item.avgOverall}/10</li>`).join('')}</ul>` : '<p class="muted">No themes yet.</p>'}</div>
+      </article>
+    </section>
+
+    <section class="grid cols" style="margin-top:18px;">
+      <article class="panel">
+        <h2>Recurring repos</h2>
+        ${recurringRepos.length ? `<table><thead><tr><th>Repo</th><th>Appearances</th><th>Trust</th></tr></thead><tbody>${recurringRepos.map(repo => `<tr><td><a href="${escapeHtml(repo.url)}">${escapeHtml(repo.fullName)}</a></td><td>${repo.appearances}</td><td>${repo.avgConfidence}/10</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No recurring repos yet.</p>'}
+      </article>
+      <article class="panel">
+        <h2>Automation preview</h2>
+        ${schedule.length ? `<table><thead><tr><th>Date</th><th>Packs</th></tr></thead><tbody>${schedule.map(row => `<tr><td>${row.date}</td><td>${escapeHtml(row.packs.join(', '))}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No schedule preview yet.</p>'}
+      </article>
+    </section>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>Recent runs</h2>
+      ${recentRuns.length ? `<table><thead><tr><th>Run</th><th>Kind</th><th>Topic</th><th>Ideas</th><th>Created</th></tr></thead><tbody>${recentRuns.map(run => `<tr><td>${escapeHtml(run.id)}</td><td>${escapeHtml(run.kind)}</td><td>${escapeHtml(run.topic)}</td><td>${run.ideaCount}</td><td>${escapeHtml(run.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No recent runs yet.</p>'}
+    </section>
+  </div>
+</body>
+</html>`;
 }
 
 function rotatedPacksFromDayIndex(dayIndex, packs = []) {
@@ -2331,7 +2576,7 @@ async function buildDailyScoutDigest(opts = {}) {
   let ranked = scored.filter(idea => idea.recentRepeats === 0).slice(0, targetCount);
   const repetitive = ranked.length < targetCount;
   if (ranked.length < 2) ranked = scored.slice(0, targetCount);
-  ranked = await attachIdeaHistoryInsights(ranked, opts);
+  ranked = finalRankIdeas(await attachIdeaHistoryInsights(ranked, opts));
 
   const suggestedPacks = suggestedPacksFromDigest(ranked, packs);
   const digest = {
@@ -2488,7 +2733,7 @@ async function cmdIdeas(opts) {
   const trending = await collectTrendingRepos({ limit: 20, topic, days: n(opts.days, 30) });
   const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
   const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = await attachIdeaHistoryInsights(llmIdeas, opts);
+  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
   if (!ideas.length) {
     console.log('No strong combinations found. Try a broader topic or lower --min-stars.');
     return;
@@ -2527,7 +2772,7 @@ async function cmdReport(opts) {
   const trending = await collectTrendingRepos({ limit: 8, topic, days: n(opts.days, 30) });
   const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
   const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = await attachIdeaHistoryInsights(llmIdeas, opts);
+  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
   if (!ideas.length) throw new Error('No strong combinations found. Try a broader topic or lower --min-stars.');
   const file = path.resolve(process.cwd(), opts.out || `repo-scout-report-${slugify(topic)}.html`);
   const previous = await latestRunFor('report', topic);
@@ -2569,7 +2814,7 @@ async function cmdBrief(opts) {
   const trending = await collectTrendingRepos({ limit: 6, topic, days: n(opts.days, 30) });
   const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
   const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = await attachIdeaHistoryInsights(llmIdeas, opts);
+  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
   const brief = buildScoutBrief(topic, profiles, ideas, trending, llmMeta);
   const run = {
     id: buildRunId('brief', topic),
@@ -2659,6 +2904,20 @@ async function cmdWeeklyScout(opts) {
 async function cmdSchedulePreview(opts) {
   const rows = buildSchedulePreview({ days: n(opts.days, 7), packs: csvList(opts.packs || '') });
   console.table(rows.map(row => ({ date: row.date, packs: row.packs.join(', ') })));
+}
+
+async function cmdDashboard(opts) {
+  const outFile = path.resolve(process.cwd(), opts.out || '.\\examples\\repo-scout-dashboard.html');
+  const [topOpportunities, recurringRepos, opportunityThemes, ideaFamilies, recentRuns] = await Promise.all([
+    libraryStartupOpportunities({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
+    libraryRecurringRepos({ limit: n(opts.limit, 8), topic: opts.topic || '' }),
+    libraryOpportunityThemes({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
+    libraryIdeaFamilies({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
+    listRunHistory({ limit: n(opts.limit, 12) }),
+  ]);
+  const schedule = buildSchedulePreview({ days: n(opts.previewDays || opts.days, 7), packs: csvList(opts.packs || '') });
+  await writeFile(outFile, buildDashboardHtml({ topOpportunities, recurringRepos, opportunityThemes, ideaFamilies, recentRuns, schedule }), 'utf8');
+  console.log(`Wrote dashboard to ${outFile}`);
 }
 
 async function cmdTrending(opts) {
@@ -2766,7 +3025,11 @@ async function cmdLibrary(opts) {
     console.table(await libraryOpportunityThemes({ limit: n(opts.limit, 10), days: n(opts.days, 60) }));
     return;
   }
-  throw new Error('Usage: repo-scout library top-repos|ideas|recurring-repos|topics|idea-families|opportunity-themes [--limit 10] [--topic topic] [--days 60]');
+  if (mode === 'startup-opportunities') {
+    console.table(await libraryStartupOpportunities({ limit: n(opts.limit, 10), days: n(opts.days, 60) }));
+    return;
+  }
+  throw new Error('Usage: repo-scout library top-repos|ideas|recurring-repos|topics|idea-families|opportunity-themes|startup-opportunities [--limit 10] [--topic topic] [--days 60]');
 }
 
 async function cmdBookmark(opts) {
@@ -2802,15 +3065,21 @@ async function cmdBookmark(opts) {
   throw new Error('Usage: repo-scout bookmark add owner/repo [--note text] | bookmark refresh owner/repo | bookmark refresh --all | bookmark list | bookmark movers [--limit 10]');
 }
 
+async function cmdThesis(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
+  console.log(`\n${buildStartupThesisMarkdown(idea, run)}\n`);
+}
+
 async function cmdSpec(opts) {
   const run = await latestIdeaRun(opts.topic || '');
-  const idea = pickIdeaFromRun(run, opts);
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
   console.log(`\n${buildIdeaSpec(idea, run)}\n`);
 }
 
 async function cmdOpenClawPrompt(opts) {
   const run = await latestIdeaRun(opts.topic || '');
-  const idea = pickIdeaFromRun(run, opts);
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
   console.log(`\n${buildOpenClawPrompt(idea, run)}\n`);
 }
 
@@ -2856,6 +3125,7 @@ async function main() {
     if (cmd === 'library') return await cmdLibrary(opts);
     if (cmd === 'bookmark') return await cmdBookmark(opts);
     if (cmd === 'spec') return await cmdSpec(opts);
+    if (cmd === 'thesis') return await cmdThesis(opts);
     if (cmd === 'openclaw-prompt') return await cmdOpenClawPrompt(opts);
     if (cmd === 'search') return await cmdSearch(opts);
     if (cmd === 'ideas') return await cmdIdeas(opts);
@@ -2864,6 +3134,7 @@ async function main() {
     if (cmd === 'daily-scout') return await cmdDailyScout(opts);
     if (cmd === 'weekly-scout') return await cmdWeeklyScout(opts);
     if (cmd === 'schedule-preview') return await cmdSchedulePreview(opts);
+    if (cmd === 'dashboard') return await cmdDashboard(opts);
     if (cmd === 'trending') return await cmdTrending(opts);
     if (cmd === 'history') return await cmdHistory(opts);
     if (cmd === 'diff') return await cmdDiff(opts);

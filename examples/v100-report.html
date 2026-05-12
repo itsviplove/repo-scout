@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repo Scout Report</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#141b34; --panel2:#0f1730; --text:#eef2ff; --muted:#9fb0d9; --accent:#7dd3fc; --good:#86efac; --warn:#fcd34d; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Segoe UI, Inter, Arial, sans-serif; background:linear-gradient(180deg, #0b1020, #111936 55%, #0b1020); color:var(--text); }
+    .wrap { max-width:1180px; margin:0 auto; padding:32px 20px 56px; }
+    .hero, .panel { background:rgba(20,27,52,.92); border:1px solid rgba(159,176,217,.18); border-radius:18px; box-shadow:0 12px 50px rgba(0,0,0,.24); }
+    .hero { padding:28px; margin-bottom:20px; }
+    h1, h2, h3, p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .stats { grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); margin:18px 0; }
+    .stat { padding:16px; background:var(--panel2); border-radius:14px; border:1px solid rgba(159,176,217,.12); }
+    .num { font-size:28px; font-weight:700; }
+    .badges, .repo-tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .badge { background:rgba(125,211,252,.12); color:#d9f4ff; border:1px solid rgba(125,211,252,.2); padding:6px 10px; border-radius:999px; font-size:13px; }
+    .section { margin-top:18px; }
+    .ideas { grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); }
+    .panel { padding:18px; }
+    .cards { grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); }
+    .repo-card, .filterbar { background:rgba(15,23,48,.8); border:1px solid rgba(159,176,217,.12); border-radius:16px; }
+    .repo-card { padding:16px; }
+    .filterbar { padding:16px; display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); align-items:end; }
+    .filterbar label { display:grid; gap:6px; font-size:13px; color:var(--muted); }
+    .filterbar input, .filterbar select, .filterbar button { width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(159,176,217,.16); background:#0c1327; color:var(--text); }
+    .filterbar button { cursor:pointer; background:linear-gradient(180deg, rgba(125,211,252,.18), rgba(125,211,252,.08)); }
+    .hidden { display:none !important; }
+    .row-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    ol { padding-left:18px; }
+    a { color:var(--accent); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(159,176,217,.12); vertical-align:top; }
+    .score { color:var(--good); font-weight:700; }
+    .repo-name { font-weight:600; }
+    .small { font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Repo Scout Report</h1>
+      <p class="muted">Topic: <strong>ai agents automation developer tools</strong></p>
+      <div class="grid stats">
+        <div class="stat"><div class="num">6</div><div class="muted">Repos analyzed</div></div>
+        <div class="stat"><div class="num">1</div><div class="muted">Ideas generated</div></div>
+        <div class="stat"><div class="num">9.7</div><div class="muted">Top score</div></div>
+        <div class="stat"><div class="num">848.3</div><div class="muted">Avg stars</div></div>
+        <div class="stat"><div class="num">6.3</div><div class="muted">Avg trust</div></div>
+        <div class="stat"><div class="num">2.7</div><div class="muted">Docs quality</div></div>
+        <div class="stat"><div class="num">10</div><div class="muted">Maintenance</div></div>
+      </div>
+      <div class="badges">
+        <span class="badge">Rust</span><span class="badge">TypeScript</span><span class="badge">Objective-C</span><span class="badge">Swift</span>
+      </div>
+      <p class="muted small section">Generated at 2026-05-12T20:25:57.167Z · topic pack agents</p>
+    </section>
+
+    <section class="panel section">
+      <h2>Capability coverage</h2>
+      <div class="badges">
+        <span class="badge">agent orchestration · 6</span><span class="badge">developer tooling · 6</span><span class="badge">workflow automation · 6</span><span class="badge">memory / knowledge · 1</span><span class="badge">data visualization · 1</span>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Dashboard filters</h2>
+      <div class="filterbar">
+        <label>
+          Search
+          <input id="repoFilterText" type="search" placeholder="name, description, capability..." />
+        </label>
+        <label>
+          Language
+          <select id="repoFilterLanguage">
+            <option value="">Any</option>
+            <option value="Objective-C">Objective-C</option><option value="Rust">Rust</option><option value="Swift">Swift</option><option value="TypeScript">TypeScript</option>
+          </select>
+        </label>
+        <label>
+          Min stars
+          <input id="repoFilterStars" type="number" min="0" step="25" value="0" />
+        </label>
+        <label>
+          Freshness
+          <select id="repoFilterFreshness">
+            <option value="0">Any</option>
+            <option value="8">8+</option>
+            <option value="6">6+</option>
+            <option value="4">4+</option>
+          </select>
+        </label>
+        <button id="repoFilterReset" type="button">Reset filters</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Featured repositories</h2>
+      <div class="grid cards">
+        
+          <article class="repo-card" data-filterable="repo" data-name="golutra/golutra" data-language="Rust" data-stars="3446" data-freshness="10" data-search="golutra/golutra multi-agent ai orchestration platform for automation, workflows, and developer tools. golutra transforms codex, claude code, and openclaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and ai productivity workspace. agent orchestration developer tooling workflow automation agent ai automation chatgpt claude claude-code codex codex-cli desktop-app developer developer-tools gemini multi-agent openai openclaw opencode orchestration productivity qwen-coder workflows">
+            <h3><a href="https://github.com/golutra/golutra">golutra/golutra</a></h3>
+            <p class="muted small">Multi-agent AI orchestration platform for automation, workflows, and developer tools. Golutra transforms Codex, Claude Code, and OpenClaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and AI productivity workspace.</p>
+            <div class="row-meta">
+              <span class="badge">★ 3446</span>
+              <span class="badge">Rust</span>
+              <span class="badge">fresh 10/10</span>
+              <span class="badge">trust 6.9/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span></div>
+            <p class="muted small">Warnings: thin README</p>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="warpdot-dev/composio" data-language="TypeScript" data-stars="228" data-freshness="9.6" data-search="warpdot-dev/composio typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers workflow automation developer tooling agent orchestration memory / knowledge ai-agents anthropic automation cloudflare devtools google-gemini integrations langchain langgraph llamaindex llm mcp model-context-protocol oauth openai-agents python saas sdk typescript vercel-ai">
+            <h3><a href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a></h3>
+            <p class="muted small">typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers</p>
+            <div class="row-meta">
+              <span class="badge">★ 228</span>
+              <span class="badge">TypeScript</span>
+              <span class="badge">fresh 9.6/10</span>
+              <span class="badge">trust 6.9/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">workflow automation</span><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">memory / knowledge</span></div>
+            <p class="muted small">Warnings: thin README</p>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="witchan/ios-mcp" data-language="Objective-C" data-stars="338" data-freshness="10" data-search="witchan/ios-mcp ios mcp: mcp management tool for jailbroken iphones, enabling developers and ai agents to inspect and control devices. agent orchestration workflow automation developer tooling automation developer-tool ios ios-mcp ios-tool ios-utility jailbroken-iphone mcp mcp-manager mobile-device-management">
+            <h3><a href="https://github.com/witchan/ios-mcp">witchan/ios-mcp</a></h3>
+            <p class="muted small">iOS MCP: MCP management tool for jailbroken iPhones, enabling developers and AI agents to inspect and control devices.</p>
+            <div class="row-meta">
+              <span class="badge">★ 338</span>
+              <span class="badge">Objective-C</span>
+              <span class="badge">fresh 10/10</span>
+              <span class="badge">trust 6.8/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">workflow automation</span><span class="badge">developer tooling</span></div>
+            <p class="muted small">Warnings: thin README</p>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="avdlee/rocketsimapp" data-language="Swift" data-stars="737" data-freshness="9.6" data-search="avdlee/rocketsimapp rocketsim — 30+ tools for xcode's ios simulator. testing, debugging, network monitoring, captures, accessibility, app actions, and ai agent automation via the rocketsim cli. used by 80k+ developers. developer tooling agent orchestration workflow automation data visualization accessibility agent-skill ai-automation debugging developer-tools ios ios-development macos network-monitoring rocketsim simulator swift testing xcode xcode-simulator">
+            <h3><a href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a></h3>
+            <p class="muted small">RocketSim — 30+ tools for Xcode's iOS Simulator. Testing, debugging, network monitoring, captures, accessibility, app actions, and AI agent automation via the RocketSim CLI. Used by 80k+ developers.</p>
+            <div class="row-meta">
+              <span class="badge">★ 737</span>
+              <span class="badge">Swift</span>
+              <span class="badge">fresh 9.6/10</span>
+              <span class="badge">trust 6.3/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">workflow automation</span><span class="badge">data visualization</span></div>
+            <p class="muted small">Warnings: thin README; release cadence looks stale</p>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="lukiiabs/skills" data-language="TypeScript" data-stars="233" data-freshness="9.6" data-search="lukiiabs/skills cursor claude mcp skill.md typescript node.js ai agent prompts automation developer tooling ide productivity skills repository open source developer tooling agent orchestration workflow automation agentic-ai ai-agents automation claude cursor developer-tools github ide llm mcp nodejs open-source productivity prompts skill-md skills typescript">
+            <h3><a href="https://github.com/lukiIabs/skills">lukiIabs/skills</a></h3>
+            <p class="muted small">Cursor Claude MCP SKILL.md TypeScript Node.js AI agent prompts automation developer tooling IDE productivity skills repository open source</p>
+            <div class="row-meta">
+              <span class="badge">★ 233</span>
+              <span class="badge">TypeScript</span>
+              <span class="badge">fresh 9.6/10</span>
+              <span class="badge">trust 6.2/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">workflow automation</span></div>
+            <p class="muted small">Warnings: thin README</p>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="tornikebolokadze1-cyber/awesome-ai-pulse-georgia" data-language="TypeScript" data-stars="108" data-freshness="9.9" data-search="tornikebolokadze1-cyber/awesome-ai-pulse-georgia a curated collection of cutting-edge ai agent frameworks, developer tools, and automation resources — by ai pulse georgia agent orchestration developer tooling workflow automation ai-agents ai-tools automation awesome awesome-list claude-code curated-list georgia mcp">
+            <h3><a href="https://github.com/tornikebolokadze1-cyber/awesome-ai-pulse-georgia">tornikebolokadze1-cyber/awesome-ai-pulse-georgia</a></h3>
+            <p class="muted small">A curated collection of cutting-edge AI agent frameworks, developer tools, and automation resources — by AI Pulse Georgia</p>
+            <div class="row-meta">
+              <span class="badge">★ 108</span>
+              <span class="badge">TypeScript</span>
+              <span class="badge">fresh 9.9/10</span>
+              <span class="badge">trust 4.9/10</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span></div>
+            <p class="muted small">Warnings: thin README; possible demo/template signals: awesome, curated</p>
+          </article>
+      </div>
+    </section>
+
+    
+    <section class="panel section">
+      <h2>Rising repos</h2>
+      <div class="grid cards">
+        
+          <article class="repo-card" data-filterable="repo" data-name="witchan/ios-mcp" data-language="Objective-C" data-stars="338" data-freshness="10" data-search="witchan/ios-mcp ios mcp: mcp management tool for jailbroken iphones, enabling developers and ai agents to inspect and control devices. agent orchestration workflow automation developer tooling">
+            <h3><a href="https://github.com/witchan/ios-mcp">witchan/ios-mcp</a></h3>
+            <p class="muted small">iOS MCP: MCP management tool for jailbroken iPhones, enabling developers and AI agents to inspect and control devices.</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 110.2</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total +52</span>
+              <span class="badge">★ 338</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">workflow automation</span><span class="badge">developer tooling</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="golutra/golutra" data-language="Rust" data-stars="3446" data-freshness="10" data-search="golutra/golutra multi-agent ai orchestration platform for automation, workflows, and developer tools. golutra transforms codex, claude code, and openclaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and ai productivity workspace. agent orchestration developer tooling workflow automation">
+            <h3><a href="https://github.com/golutra/golutra">golutra/golutra</a></h3>
+            <p class="muted small">Multi-agent AI orchestration platform for automation, workflows, and developer tools. Golutra transforms Codex, Claude Code, and OpenClaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and AI productivity workspace.</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 99.9</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total +47</span>
+              <span class="badge">★ 3446</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="tornikebolokadze1-cyber/awesome-ai-pulse-georgia" data-language="TypeScript" data-stars="108" data-freshness="10" data-search="tornikebolokadze1-cyber/awesome-ai-pulse-georgia a curated collection of cutting-edge ai agent frameworks, developer tools, and automation resources — by ai pulse georgia agent orchestration developer tooling workflow automation">
+            <h3><a href="https://github.com/tornikebolokadze1-cyber/awesome-ai-pulse-georgia">tornikebolokadze1-cyber/awesome-ai-pulse-georgia</a></h3>
+            <p class="muted small">A curated collection of cutting-edge AI agent frameworks, developer tools, and automation resources — by AI Pulse Georgia</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 3.6</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total +0</span>
+              <span class="badge">★ 108</span>
+            </div>
+            <div class="row-meta"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="julpygo/claude-code-ai-design" data-language="C++" data-stars="254" data-freshness="10" data-search="julpygo/claude-code-ai-design claude design anthropic tool download april 2026 figma to code ai agent research preview claude code cli integration react 19 tailwind v4 support model context protocol mcp server setup design systems automation ui ux prototyping next.js component generation best developer tools 2026 free tutorial developer tooling agent orchestration workflow automation">
+            <h3><a href="https://github.com/Julpygo/Claude-Code-AI-Design">Julpygo/Claude-Code-AI-Design</a></h3>
+            <p class="muted small">Claude Design Anthropic Tool Download April 2026 Figma to Code AI Agent Research Preview Claude Code CLI Integration React 19 Tailwind v4 Support Model Context Protocol MCP Server Setup Design Systems Automation UI UX Prototyping Next.js Component Generation Best Developer Tools 2026 Free Tutorial</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 3.3</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total +0</span>
+              <span class="badge">★ 254</span>
+            </div>
+            <div class="row-meta"><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">workflow automation</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="avdlee/rocketsimapp" data-language="Swift" data-stars="737" data-freshness="10" data-search="avdlee/rocketsimapp rocketsim — 30+ tools for xcode's ios simulator. testing, debugging, network monitoring, captures, accessibility, app actions, and ai agent automation via the rocketsim cli. used by 80k+ developers. developer tooling agent orchestration workflow automation data visualization">
+            <h3><a href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a></h3>
+            <p class="muted small">RocketSim — 30+ tools for Xcode's iOS Simulator. Testing, debugging, network monitoring, captures, accessibility, app actions, and AI agent automation via the RocketSim CLI. Used by 80k+ developers.</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 2.8</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total -1</span>
+              <span class="badge">★ 737</span>
+            </div>
+            <div class="row-meta"><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">workflow automation</span><span class="badge">data visualization</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="lukiiabs/skills" data-language="TypeScript" data-stars="233" data-freshness="10" data-search="lukiiabs/skills cursor claude mcp skill.md typescript node.js ai agent prompts automation developer tooling ide productivity skills repository open source developer tooling agent orchestration workflow automation">
+            <h3><a href="https://github.com/lukiIabs/skills">lukiIabs/skills</a></h3>
+            <p class="muted small">Cursor Claude MCP SKILL.md TypeScript Node.js AI agent prompts automation developer tooling IDE productivity skills repository open source</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 2.8</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total -7</span>
+              <span class="badge">★ 233</span>
+            </div>
+            <div class="row-meta"><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">workflow automation</span></div>
+          </article>
+          <article class="repo-card" data-filterable="repo" data-name="warpdot-dev/composio" data-language="TypeScript" data-stars="228" data-freshness="10" data-search="warpdot-dev/composio typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers workflow automation developer tooling agent orchestration memory / knowledge">
+            <h3><a href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a></h3>
+            <p class="muted small">typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers</p>
+            <div class="row-meta">
+              <span class="badge">new this window</span>
+              <span class="badge">trend 2.8</span>
+              <span class="badge">Δ +0</span>
+              <span class="badge">total -14</span>
+              <span class="badge">★ 228</span>
+            </div>
+            <div class="row-meta"><span class="badge">workflow automation</span><span class="badge">developer tooling</span><span class="badge">agent orchestration</span><span class="badge">memory / knowledge</span></div>
+          </article>
+      </div>
+    </section>
+
+    
+    <section class="panel section">
+      <h2>Trend watch</h2>
+      <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));">
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Breakout</h3>
+          <p class="muted">None yet</p>
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>New this window</h3>
+          <ul><li>witchan/ios-mcp · age 5.1d</li><li>golutra/golutra · age 5.1d</li><li>tornikebolokadze1-cyber/awesome-ai-pulse-georgia · age 1d</li><li>Julpygo/Claude-Code-AI-Design · age 1d</li></ul>
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Watchlist</h3>
+          <p class="muted">None yet</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Quality breakdown</h2>
+      <table>
+        <thead>
+          <tr><th>Repo</th><th>Trust</th><th>Docs</th><th>Maintenance</th><th>Ship activity</th><th>Health</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="repo-name"><a href="https://github.com/golutra/golutra">golutra/golutra</a></td><td>6.9/10</td><td>2.7/10</td><td>10/10</td><td>6.9/10</td><td>Some recent commit activity. Recent release signal is strong.</td></tr><tr><td class="repo-name"><a href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a></td><td>6.9/10</td><td>2.7/10</td><td>10/10</td><td>6/10</td><td>High recent commit velocity. No recent release metadata found.</td></tr><tr><td class="repo-name"><a href="https://github.com/witchan/ios-mcp">witchan/ios-mcp</a></td><td>6.8/10</td><td>2.7/10</td><td>10/10</td><td>9.8/10</td><td>High recent commit velocity. Recent release signal is strong.</td></tr><tr><td class="repo-name"><a href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a></td><td>6.3/10</td><td>2.7/10</td><td>10/10</td><td>6/10</td><td>High recent commit velocity. Release cadence looks slow.</td></tr><tr><td class="repo-name"><a href="https://github.com/lukiIabs/skills">lukiIabs/skills</a></td><td>6.2/10</td><td>2.7/10</td><td>10/10</td><td>6/10</td><td>High recent commit velocity. No recent release metadata found.</td></tr><tr><td class="repo-name"><a href="https://github.com/tornikebolokadze1-cyber/awesome-ai-pulse-georgia">tornikebolokadze1-cyber/awesome-ai-pulse-georgia</a></td><td>4.9/10</td><td>2.7/10</td><td>10/10</td><td>6/10</td><td>High recent commit velocity. No recent release metadata found.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    
+    <section class="panel section">
+      <h2>Watchlist snapshot</h2>
+      <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Bookmarks</h3>
+          <ul><li>simstudioai/sim — watch recurring agent builder</li><li>browser-use/browser-use — watch this for browser agents</li></ul>
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Bookmark movers</h3>
+          <ul><li>simstudioai/sim · stars +3 · confidence +0.8</li></ul>
+        </div>
+      </div>
+    </section>
+
+    
+    <section class="panel section">
+      <h2>Opportunity memory</h2>
+      <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Idea families</h3>
+          <ul><li>analytics + automation + developer + knowledge · 11 hits · avg 9.5/10</li><li>automation + developer + documents + knowledge + web · 11 hits · avg 9.4/10</li><li>automation + developer + documents + knowledge · 9 hits · avg 9.1/10</li><li>automation + developer + knowledge · 9 hits · avg 8.4/10</li><li>automation + developer + documents + knowledge + vision · 4 hits · avg 8.9/10</li><li>automation + documents + knowledge + web · 4 hits · avg 8.6/10</li></ul>
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Opportunity themes</h3>
+          <ul><li>automation, orchestration, workflows, workflow · 10 hits · avg 9.5/10</li><li>agentic, workflow, development, document · 8 hits · avg 9/10</li><li>agentic, workflow, development, coding · 8 hits · avg 8.4/10</li><li>agents, brain, self-hostable, web · 4 hits · avg 9.8/10</li><li>agents, browser, automation, web · 3 hits · avg 10/10</li><li>complex, transforms, documents, pdf · 3 hits · avg 9/10</li></ul>
+        </div>
+      </div>
+    </section>
+
+    
+    <section class="panel section">
+      <h2>What changed since last scan</h2>
+      <div class="grid stats">
+        <div class="stat"><div class="num">+0</div><div class="muted">Repo count delta</div></div>
+        <div class="stat"><div class="num">+0</div><div class="muted">Idea count delta</div></div>
+        <div class="stat"><div class="num">0</div><div class="muted">New repos</div></div>
+        <div class="stat"><div class="num">0</div><div class="muted">Removed repos</div></div>
+      </div>
+      <p class="muted small">Compared 2026-05-12T20:03:07.185Z → 2026-05-12T20:25:57.137Z</p>
+      <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));">
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>New repos</h3>
+          <p class="muted">None</p>
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Removed repos</h3>
+          <p class="muted">None</p>
+        </div>
+      </div>
+      
+    </section>
+
+    <section class="section">
+      <h2>Ranked ideas</h2>
+      <div class="grid ideas">
+        
+          <article class="panel" data-filterable="idea" data-search="workflow coding memory copilot automation, orchestration, workflows a learns repo-specific lessons from coding sessions and injects the right context before future work. golutra/golutra brings agent orchestration + developer tooling; warpdot-dev/composio brings workflow automation + developer tooling; avdlee/rocketsimapp brings developer tooling + agent orchestration agent orchestration developer tooling workflow automation memory / knowledge data visualization">
+            <h3>1. Workflow Coding Memory Copilot</h3>
+            <p class="score">Overall 9.7/10</p>
+            <p class="muted small">Theme: automation, orchestration, workflows</p>
+            <p class="muted small">Market: Developer workflow and team productivity</p>
+            <p class="muted small">Theme cluster: Automation / analytics + automation + developer + knowledge</p>
+            <p>A learns repo-specific lessons from coding sessions and injects the right context before future work.</p>
+            <p class="small"><strong>Repos:</strong> <a href="https://github.com/golutra/golutra">golutra/golutra</a> + <a href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a> + <a href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a></p>
+            <p class="small"><strong>Why:</strong> golutra/golutra brings agent orchestration + developer tooling; warpdot-dev/composio brings workflow automation + developer tooling; AvdLee/RocketSimApp brings developer tooling + agent orchestration</p>
+            <p class="small"><strong>Differentiation:</strong> Differentiate by packaging golutra + composio + RocketSimApp into a tighter ai agents automation developer tools workflow with opinionated defaults.</p>
+            
+            <p class="small"><strong>Risk:</strong> Scope risk: strong capability mix, but integration complexity is non-trivial.</p>
+            <div class="repo-tags"><span class="badge">agent orchestration</span><span class="badge">developer tooling</span><span class="badge">workflow automation</span><span class="badge">memory / knowledge</span><span class="badge">data visualization</span></div>
+            <p class="small section"><strong>Score mix:</strong> novelty 9/10 · buildability 9.1/10 · usefulness 8.9/10 · confidence 6.7/10</p>
+            <ol>
+              <li>Index repo docs and prior logs</li><li>Extract conventions/mistakes/test commands</li><li>Retrieve relevant lessons per task</li><li>Generate a compact context pack</li>
+            </ol>
+          </article>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Repository snapshot</h2>
+      <table>
+        <thead>
+          <tr><th>Repo</th><th>Stars</th><th>Language</th><th>Capabilities</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          
+            <tr data-filterable="repo" data-name="golutra/golutra" data-language="Rust" data-stars="3446" data-freshness="10" data-search="golutra/golutra multi-agent ai orchestration platform for automation, workflows, and developer tools. golutra transforms codex, claude code, and openclaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and ai productivity workspace. agent orchestration developer tooling workflow automation agent ai automation chatgpt claude claude-code codex codex-cli desktop-app developer developer-tools gemini multi-agent openai openclaw opencode orchestration productivity qwen-coder workflows">
+              <td><a class="repo-name" href="https://github.com/golutra/golutra">golutra/golutra</a><div class="muted small">Multi-agent AI orchestration platform for automation, workflows, and developer tools. Golutra transforms Codex, Claude Code, and OpenClaw into a unified agent system with parallel execution, task orchestration, long-running workflows, and AI productivity workspace.</div></td>
+              <td>3446</td>
+              <td>Rust</td>
+              <td>agent orchestration, developer tooling, workflow automation</td>
+              <td>2026-05-12</td>
+            </tr>
+            <tr data-filterable="repo" data-name="warpdot-dev/composio" data-language="TypeScript" data-stars="228" data-freshness="9.6" data-search="warpdot-dev/composio typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers workflow automation developer tooling agent orchestration memory / knowledge ai-agents anthropic automation cloudflare devtools google-gemini integrations langchain langgraph llamaindex llm mcp model-context-protocol oauth openai-agents python saas sdk typescript vercel-ai">
+              <td><a class="repo-name" href="https://github.com/warpdot-dev/composio">warpdot-dev/composio</a><div class="muted small">typescript python sdk ai-agents anthropic openapi langchain openai-agents llamaindex mastra vercel-ai mcp oauth saas llm integrations agent-tools automation cloudflare google-gemini tooling rag multi-provider developer-sdk composable-actions webhook-triggers</div></td>
+              <td>228</td>
+              <td>TypeScript</td>
+              <td>workflow automation, developer tooling, agent orchestration, memory / knowledge</td>
+              <td>2026-05-01</td>
+            </tr>
+            <tr data-filterable="repo" data-name="witchan/ios-mcp" data-language="Objective-C" data-stars="338" data-freshness="10" data-search="witchan/ios-mcp ios mcp: mcp management tool for jailbroken iphones, enabling developers and ai agents to inspect and control devices. agent orchestration workflow automation developer tooling automation developer-tool ios ios-mcp ios-tool ios-utility jailbroken-iphone mcp mcp-manager mobile-device-management">
+              <td><a class="repo-name" href="https://github.com/witchan/ios-mcp">witchan/ios-mcp</a><div class="muted small">iOS MCP: MCP management tool for jailbroken iPhones, enabling developers and AI agents to inspect and control devices.</div></td>
+              <td>338</td>
+              <td>Objective-C</td>
+              <td>agent orchestration, workflow automation, developer tooling</td>
+              <td>2026-05-12</td>
+            </tr>
+            <tr data-filterable="repo" data-name="avdlee/rocketsimapp" data-language="Swift" data-stars="737" data-freshness="9.6" data-search="avdlee/rocketsimapp rocketsim — 30+ tools for xcode's ios simulator. testing, debugging, network monitoring, captures, accessibility, app actions, and ai agent automation via the rocketsim cli. used by 80k+ developers. developer tooling agent orchestration workflow automation data visualization accessibility agent-skill ai-automation debugging developer-tools ios ios-development macos network-monitoring rocketsim simulator swift testing xcode xcode-simulator">
+              <td><a class="repo-name" href="https://github.com/AvdLee/RocketSimApp">AvdLee/RocketSimApp</a><div class="muted small">RocketSim — 30+ tools for Xcode's iOS Simulator. Testing, debugging, network monitoring, captures, accessibility, app actions, and AI agent automation via the RocketSim CLI. Used by 80k+ developers.</div></td>
+              <td>737</td>
+              <td>Swift</td>
+              <td>developer tooling, agent orchestration, workflow automation, data visualization</td>
+              <td>2026-04-30</td>
+            </tr>
+            <tr data-filterable="repo" data-name="lukiiabs/skills" data-language="TypeScript" data-stars="233" data-freshness="9.6" data-search="lukiiabs/skills cursor claude mcp skill.md typescript node.js ai agent prompts automation developer tooling ide productivity skills repository open source developer tooling agent orchestration workflow automation agentic-ai ai-agents automation claude cursor developer-tools github ide llm mcp nodejs open-source productivity prompts skill-md skills typescript">
+              <td><a class="repo-name" href="https://github.com/lukiIabs/skills">lukiIabs/skills</a><div class="muted small">Cursor Claude MCP SKILL.md TypeScript Node.js AI agent prompts automation developer tooling IDE productivity skills repository open source</div></td>
+              <td>233</td>
+              <td>TypeScript</td>
+              <td>developer tooling, agent orchestration, workflow automation</td>
+              <td>2026-05-01</td>
+            </tr>
+            <tr data-filterable="repo" data-name="tornikebolokadze1-cyber/awesome-ai-pulse-georgia" data-language="TypeScript" data-stars="108" data-freshness="9.9" data-search="tornikebolokadze1-cyber/awesome-ai-pulse-georgia a curated collection of cutting-edge ai agent frameworks, developer tools, and automation resources — by ai pulse georgia agent orchestration developer tooling workflow automation ai-agents ai-tools automation awesome awesome-list claude-code curated-list georgia mcp">
+              <td><a class="repo-name" href="https://github.com/tornikebolokadze1-cyber/awesome-ai-pulse-georgia">tornikebolokadze1-cyber/awesome-ai-pulse-georgia</a><div class="muted small">A curated collection of cutting-edge AI agent frameworks, developer tools, and automation resources — by AI Pulse Georgia</div></td>
+              <td>108</td>
+              <td>TypeScript</td>
+              <td>agent orchestration, developer tooling, workflow automation</td>
+              <td>2026-05-10</td>
+            </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <script>
+      (function () {
+        const text = document.getElementById('repoFilterText');
+        const language = document.getElementById('repoFilterLanguage');
+        const stars = document.getElementById('repoFilterStars');
+        const freshness = document.getElementById('repoFilterFreshness');
+        const reset = document.getElementById('repoFilterReset');
+        const items = document.querySelectorAll('[data-filterable="repo"]');
+
+        function apply() {
+          const q = (text?.value || '').trim().toLowerCase();
+          const lang = (language?.value || '').trim();
+          const minStars = Number(stars?.value || 0);
+          const minFreshness = Number(freshness?.value || 0);
+          items.forEach(el => {
+            const search = (el.dataset.search || '');
+            const itemLang = el.dataset.language || '';
+            const itemStars = Number(el.dataset.stars || 0);
+            const itemFreshness = Number(el.dataset.freshness || 0);
+            const ok = (!q || search.includes(q)) && (!lang || itemLang === lang) && itemStars >= minStars && itemFreshness >= minFreshness;
+            el.classList.toggle('hidden', !ok);
+          });
+        }
+
+        [text, language, stars, freshness].forEach(el => el && el.addEventListener('input', apply));
+        [language, freshness].forEach(el => el && el.addEventListener('change', apply));
+        reset?.addEventListener('click', () => {
+          if (text) text.value = '';
+          if (language) language.value = '';
+          if (stars) stars.value = '0';
+          if (freshness) freshness.value = '0';
+          apply();
+        });
+      })();
+    </script>
+  </div>
+</body>
+</html>

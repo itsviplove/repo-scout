@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repo Scout Dashboard</title>
+  <style>
+    :root { color-scheme: dark; --bg:#09101d; --panel:#121a30; --panel2:#0c1428; --text:#eef2ff; --muted:#9cb0d9; --accent:#7dd3fc; --good:#86efac; }
+    body { margin:0; font-family:Segoe UI, Inter, Arial, sans-serif; background:linear-gradient(180deg,#09101d,#0e1730 60%,#09101d); color:var(--text); }
+    .wrap { max-width:1220px; margin:0 auto; padding:28px 18px 48px; }
+    .hero,.panel { background:rgba(18,26,48,.92); border:1px solid rgba(156,176,217,.16); border-radius:18px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+    .hero { padding:24px; margin-bottom:18px; }
+    .panel { padding:18px; }
+    h1,h2,h3,p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .stats { grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-top:14px; }
+    .stat { padding:14px; background:var(--panel2); border-radius:14px; }
+    .num { font-size:26px; font-weight:700; }
+    .cols { grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+    .card { background:rgba(12,20,40,.9); border:1px solid rgba(156,176,217,.12); border-radius:14px; padding:14px; }
+    .badge { display:inline-block; margin:4px 6px 0 0; padding:5px 10px; border-radius:999px; background:rgba(125,211,252,.12); border:1px solid rgba(125,211,252,.18); color:#d8f3ff; font-size:12px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(156,176,217,.12); vertical-align:top; }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Repo Scout Startup Dashboard</h1>
+      <p class="muted">High-level opportunity review for the current scouting library and recent runs.</p>
+      <div class="grid stats">
+        <div class="stat"><div class="num">8</div><div class="muted">Top opportunities</div></div>
+        <div class="stat"><div class="num">8</div><div class="muted">Recurring repos</div></div>
+        <div class="stat"><div class="num">8</div><div class="muted">Hot themes</div></div>
+        <div class="stat"><div class="num">12</div><div class="muted">Recent runs</div></div>
+      </div>
+    </section>
+
+    <section class="grid cols">
+      <article class="panel">
+        <h2>Top startup opportunities</h2>
+        <div class="card"><h3>analytics + automation + developer + knowledge</h3><p class="muted">avg opportunity 9.5/10 · appearances 8</p><p>Workflow Coding Memory Copilot</p></div><div class="card"><h3>Automation / analytics + automation + developer + knowledge</h3><p class="muted">avg opportunity 9.4/10 · appearances 6</p><p>Workflow Coding Memory Copilot</p></div><div class="card"><h3>Agents / automation + developer + documents + knowledge + web</h3><p class="muted">avg opportunity 9.4/10 · appearances 5</p><p>Web Knowledge Coding Memory Copilot</p></div><div class="card"><h3>Agentic / automation + developer + documents + knowledge</h3><p class="muted">avg opportunity 9.2/10 · appearances 5</p><p>Document Coding Memory Copilot</p></div><div class="card"><h3>automation + developer + documents + knowledge + web</h3><p class="muted">avg opportunity 9/10 · appearances 7</p><p>Technical Document Idea Lab | Web Knowledge Coding Memory Copilot</p></div><div class="card"><h3>automation + developer + documents + knowledge</h3><p class="muted">avg opportunity 9/10 · appearances 5</p><p>Document Coding Memory Copilot</p></div><div class="card"><h3>automation + documents + knowledge + web</h3><p class="muted">avg opportunity 9/10 · appearances 2</p><p>Pdf Intake Copilot</p></div><div class="card"><h3>automation + developer + documents + knowledge + vision</h3><p class="muted">avg opportunity 8.9/10 · appearances 4</p><p>Any Intake Copilot | Document Coding Memory Copilot | Fair code Intake Copilot | Document Vision Automator</p></div>
+      </article>
+      <article class="panel">
+        <h2>Opportunity memory</h2>
+        <div class="card"><h3>Idea families</h3><ul><li>analytics + automation + developer + knowledge · 14 hits · avg 9.6/10</li><li>automation + developer + documents + knowledge + web · 12 hits · avg 9.4/10</li><li>automation + developer + documents + knowledge · 10 hits · avg 9.2/10</li><li>automation + developer + knowledge · 9 hits · avg 8.4/10</li><li>automation + documents + knowledge + web · 6 hits · avg 8.5/10</li><li>automation + developer + documents + knowledge + vision · 4 hits · avg 8.9/10</li></ul></div>
+        <div class="card" style="margin-top:12px;"><h3>Hot themes</h3><ul><li>automation, orchestration, workflows, workflow · 12 hits · avg 9.5/10</li><li>agentic, workflow, development, document · 8 hits · avg 9/10</li><li>agentic, workflow, development, coding · 8 hits · avg 8.4/10</li><li>agents, brain, self-hostable, web · 4 hits · avg 9.8/10</li><li>complex, transforms, documents, pdf · 4 hits · avg 9.1/10</li><li>agents, browser, automation, web · 3 hits · avg 10/10</li><li>agents / automation + developer + documents + knowledge + web, web, knowledge, coding · 2 hits · avg 10/10</li><li>agentic / automation + developer + documents + knowledge, document, coding, memory · 2 hits · avg 10/10</li></ul></div>
+      </article>
+    </section>
+
+    <section class="grid cols" style="margin-top:18px;">
+      <article class="panel">
+        <h2>Recurring repos</h2>
+        <table><thead><tr><th>Repo</th><th>Appearances</th><th>Trust</th></tr></thead><tbody><tr><td><a href="https://github.com/langgenius/dify">langgenius/dify</a></td><td>6</td><td>7.2/10</td></tr><tr><td><a href="https://github.com/simstudioai/sim">simstudioai/sim</a></td><td>6</td><td>7.2/10</td></tr><tr><td><a href="https://github.com/Budibase/budibase">Budibase/budibase</a></td><td>6</td><td>6.9/10</td></tr><tr><td><a href="https://github.com/activepieces/activepieces">activepieces/activepieces</a></td><td>6</td><td>6.9/10</td></tr><tr><td><a href="https://github.com/vercel-labs/agent-browser">vercel-labs/agent-browser</a></td><td>6</td><td>6.6/10</td></tr><tr><td><a href="https://github.com/assafelovic/gpt-researcher">assafelovic/gpt-researcher</a></td><td>6</td><td>6.6/10</td></tr><tr><td><a href="https://github.com/khoj-ai/khoj">khoj-ai/khoj</a></td><td>6</td><td>6.5/10</td></tr><tr><td><a href="https://github.com/googleworkspace/cli">googleworkspace/cli</a></td><td>6</td><td>5.8/10</td></tr></tbody></table>
+      </article>
+      <article class="panel">
+        <h2>Automation preview</h2>
+        <table><thead><tr><th>Date</th><th>Packs</th></tr></thead><tbody><tr><td>2026-05-12</td><td>docs, agents, devtools</td></tr><tr><td>2026-05-13</td><td>agents, devtools, browser</td></tr><tr><td>2026-05-14</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-05-15</td><td>browser, localfirst, research</td></tr><tr><td>2026-05-16</td><td>localfirst, research, docs</td></tr><tr><td>2026-05-17</td><td>research, docs, agents</td></tr><tr><td>2026-05-18</td><td>docs, agents, devtools</td></tr><tr><td>2026-05-19</td><td>agents, devtools, browser</td></tr><tr><td>2026-05-20</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-05-21</td><td>browser, localfirst, research</td></tr><tr><td>2026-05-22</td><td>localfirst, research, docs</td></tr><tr><td>2026-05-23</td><td>research, docs, agents</td></tr><tr><td>2026-05-24</td><td>docs, agents, devtools</td></tr><tr><td>2026-05-25</td><td>agents, devtools, browser</td></tr><tr><td>2026-05-26</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-05-27</td><td>browser, localfirst, research</td></tr><tr><td>2026-05-28</td><td>localfirst, research, docs</td></tr><tr><td>2026-05-29</td><td>research, docs, agents</td></tr><tr><td>2026-05-30</td><td>docs, agents, devtools</td></tr><tr><td>2026-05-31</td><td>agents, devtools, browser</td></tr><tr><td>2026-06-01</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-06-02</td><td>browser, localfirst, research</td></tr><tr><td>2026-06-03</td><td>localfirst, research, docs</td></tr><tr><td>2026-06-04</td><td>research, docs, agents</td></tr><tr><td>2026-06-05</td><td>docs, agents, devtools</td></tr><tr><td>2026-06-06</td><td>agents, devtools, browser</td></tr><tr><td>2026-06-07</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-06-08</td><td>browser, localfirst, research</td></tr><tr><td>2026-06-09</td><td>localfirst, research, docs</td></tr><tr><td>2026-06-10</td><td>research, docs, agents</td></tr><tr><td>2026-06-11</td><td>docs, agents, devtools</td></tr><tr><td>2026-06-12</td><td>agents, devtools, browser</td></tr><tr><td>2026-06-13</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-06-14</td><td>browser, localfirst, research</td></tr><tr><td>2026-06-15</td><td>localfirst, research, docs</td></tr><tr><td>2026-06-16</td><td>research, docs, agents</td></tr><tr><td>2026-06-17</td><td>docs, agents, devtools</td></tr><tr><td>2026-06-18</td><td>agents, devtools, browser</td></tr><tr><td>2026-06-19</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-06-20</td><td>browser, localfirst, research</td></tr><tr><td>2026-06-21</td><td>localfirst, research, docs</td></tr><tr><td>2026-06-22</td><td>research, docs, agents</td></tr><tr><td>2026-06-23</td><td>docs, agents, devtools</td></tr><tr><td>2026-06-24</td><td>agents, devtools, browser</td></tr><tr><td>2026-06-25</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-06-26</td><td>browser, localfirst, research</td></tr><tr><td>2026-06-27</td><td>localfirst, research, docs</td></tr><tr><td>2026-06-28</td><td>research, docs, agents</td></tr><tr><td>2026-06-29</td><td>docs, agents, devtools</td></tr><tr><td>2026-06-30</td><td>agents, devtools, browser</td></tr><tr><td>2026-07-01</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-07-02</td><td>browser, localfirst, research</td></tr><tr><td>2026-07-03</td><td>localfirst, research, docs</td></tr><tr><td>2026-07-04</td><td>research, docs, agents</td></tr><tr><td>2026-07-05</td><td>docs, agents, devtools</td></tr><tr><td>2026-07-06</td><td>agents, devtools, browser</td></tr><tr><td>2026-07-07</td><td>devtools, browser, localfirst</td></tr><tr><td>2026-07-08</td><td>browser, localfirst, research</td></tr><tr><td>2026-07-09</td><td>localfirst, research, docs</td></tr><tr><td>2026-07-10</td><td>research, docs, agents</td></tr></tbody></table>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-top:18px;">
+      <h2>Recent runs</h2>
+      <table><thead><tr><th>Run</th><th>Kind</th><th>Topic</th><th>Ideas</th><th>Created</th></tr></thead><tbody><tr><td>2026-05-12T20-25-59-306Z-weekly-scout-last-7-days</td><td>weekly-scout</td><td>last 7 days</td><td>3</td><td>2026-05-12T20:25:59.307Z</td></tr><tr><td>2026-05-12T20-25-59-143Z-daily-scout-docs-agents-devtools</td><td>daily-scout</td><td>docs, agents, devtools</td><td>3</td><td>2026-05-12T20:25:59.142Z</td></tr><tr><td>2026-05-12T20-25-57-136Z-report-ai-agents-automation-developer-tools</td><td>report</td><td>ai agents automation developer tools</td><td>1</td><td>2026-05-12T20:25:57.137Z</td></tr><tr><td>2026-05-12T20-25-56-096Z-ideas-ai-agents-automation</td><td>ideas</td><td>ai agents automation</td><td>3</td><td>2026-05-12T20:25:56.097Z</td></tr><tr><td>2026-05-12T20-24-54-506Z-ideas-ai-agents-automation</td><td>ideas</td><td>ai agents automation</td><td>3</td><td>2026-05-12T20:24:54.507Z</td></tr><tr><td>2026-05-12T20-03-08-321Z-daily-scout-docs-agents-devtools</td><td>daily-scout</td><td>docs, agents, devtools</td><td>3</td><td>2026-05-12T20:03:08.321Z</td></tr><tr><td>2026-05-12T20-03-08-072Z-ideas-ai-agents-automation</td><td>ideas</td><td>ai agents automation</td><td>3</td><td>2026-05-12T20:03:08.072Z</td></tr><tr><td>2026-05-12T20-03-07-185Z-report-ai-agents-automation-developer-tools</td><td>report</td><td>ai agents automation developer tools</td><td>1</td><td>2026-05-12T20:03:07.185Z</td></tr><tr><td>2026-05-12T20-03-03-775Z-weekly-scout-last-7-days</td><td>weekly-scout</td><td>last 7 days</td><td>3</td><td>2026-05-12T20:03:03.777Z</td></tr><tr><td>2026-05-12T19-22-37-137Z-daily-scout-docs-agents-devtools</td><td>daily-scout</td><td>docs, agents, devtools</td><td>3</td><td>2026-05-12T19:22:37.136Z</td></tr><tr><td>2026-05-12T19-19-20-869Z-daily-scout-docs-agents-devtools</td><td>daily-scout</td><td>docs, agents, devtools</td><td>2</td><td>2026-05-12T19:19:20.869Z</td></tr><tr><td>2026-05-12T16-58-06-636Z-ideas-ai-agents-automation</td><td>ideas</td><td>ai agents automation</td><td>3</td><td>2026-05-12T16:58:06.637Z</td></tr></tbody></table>
+    </section>
+  </div>
+</body>
+</html>
