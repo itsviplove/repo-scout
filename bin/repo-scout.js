@@ -5,18 +5,22 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = path.resolve(SCRIPT_DIR, '..');
 const CACHE_DIR = path.join(PROJECT_DIR, '.repo-scout-cache');
 const HISTORY_DIR = path.join(PROJECT_DIR, '.repo-scout-history');
 const HISTORY_RUNS_DIR = path.join(HISTORY_DIR, 'runs');
+const LIBRARY_DB_FILE = path.join(HISTORY_DIR, 'repo-scout.db');
 const DEFAULT_CONFIG_FILE = '.repo-scout.json';
 const DEFAULT_TOPICS = 'ai agents automation developer tools';
 const STOPWORDS = new Set('the a an and or of to in for with on by from is are be as at it this that into your you ai llm open source github https http com org img alt src href badge shield true false null undefined user users repo repos repository get build second first production-ready platform use using based toolkit framework'.split(' '));
 const NEGATIVE_SIGNAL_TERMS = ['awesome', 'curated', 'list of', 'boilerplate', 'template', 'starter', 'example', 'examples', 'demo', 'showcase', 'tutorial', 'course'];
 const DOC_SIGNAL_TERMS = ['install', 'usage', 'quickstart', 'getting started', 'api', 'configuration', 'license', 'contributing'];
+const WEAK_CODE_SIGNALS = ['hackathon', 'toy', 'sample', 'proof of concept', 'poc', 'boilerplate', 'starter kit'];
+const QUALITY_SIGNAL_TERMS = ['production', 'production-ready', 'tests', 'benchmark', 'roadmap', 'changelog', 'migration'];
 const DEFAULT_LLM_MODEL = process.env.OPENCLAW_MODEL || 'openclaw/default';
+let libraryDbPromise = null;
 
 const TOPIC_PACKS = {
   agents: 'ai agents automation developer tools',
@@ -94,7 +98,7 @@ const IDEA_ARCHETYPES = [
 ];
 
 function usage() {
-  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout trending [topic] [--limit 10] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief] [--topic topic]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation"\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout trending --topic-pack agents\n  repo-scout history --limit 10\n  repo-scout diff --latest --kind report\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
+  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout trending [topic] [--limit 10] [--days 30] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief] [--topic topic] [--format full|compact|table]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout library top-repos [--limit 10] [--topic topic]\n  repo-scout library ideas [--limit 10] [--topic topic]\n  repo-scout bookmark add owner/repo [--note text]\n  repo-scout bookmark list\n  repo-scout spec [--latest] [--topic topic] [--idea 1]\n  repo-scout openclaw-prompt [--latest] [--topic topic] [--idea 1]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation" --format table\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout trending --topic-pack agents --days 14\n  repo-scout history --limit 10 --format compact\n  repo-scout diff --latest --kind report\n  repo-scout library top-repos --limit 12\n  repo-scout bookmark add browser-use/browser-use --note "watch this for agent browsing"\n  repo-scout spec --latest --idea 1\n  repo-scout openclaw-prompt --latest --idea 1\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
 }
 
 function parseArgs(argv) {
@@ -191,7 +195,7 @@ async function writeDefaultConfig(force = false) {
 }
 
 function pickRunOpts(opts = {}) {
-  const keys = ['topic-pack', 'limit', 'min-stars', 'language', 'days', 'sort', 'ideas', 'no-readme', 'json', 'markdown', 'out', 'llm', 'config'];
+  const keys = ['topic-pack', 'limit', 'min-stars', 'language', 'days', 'sort', 'ideas', 'no-readme', 'json', 'markdown', 'out', 'llm', 'config', 'format'];
   const picked = {};
   for (const key of keys) {
     if (opts[key] !== undefined) picked[key] = opts[key];
@@ -202,6 +206,110 @@ function pickRunOpts(opts = {}) {
 async function ensureHistoryDir() {
   await mkdir(HISTORY_RUNS_DIR, { recursive: true });
   return HISTORY_RUNS_DIR;
+}
+
+async function getLibraryDb() {
+  if (!libraryDbPromise) {
+    libraryDbPromise = (async () => {
+      await ensureHistoryDir();
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(LIBRARY_DB_FILE);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS runs (
+          id TEXT PRIMARY KEY,
+          created_at TEXT,
+          kind TEXT,
+          topic TEXT,
+          command_name TEXT,
+          repo_count INTEGER,
+          idea_count INTEGER,
+          output TEXT
+        );
+        CREATE TABLE IF NOT EXISTS repos (
+          run_id TEXT,
+          full_name TEXT,
+          url TEXT,
+          language TEXT,
+          stars INTEGER,
+          confidence REAL,
+          docs_quality REAL,
+          maintenance REAL,
+          capabilities TEXT,
+          warnings TEXT,
+          PRIMARY KEY (run_id, full_name)
+        );
+        CREATE TABLE IF NOT EXISTS ideas (
+          run_id TEXT,
+          idea_key TEXT,
+          title TEXT,
+          overall REAL,
+          confidence REAL,
+          market_angle TEXT,
+          difficulty TEXT,
+          risk TEXT,
+          differentiation TEXT,
+          PRIMARY KEY (run_id, idea_key)
+        );
+        CREATE TABLE IF NOT EXISTS bookmarks (
+          full_name TEXT PRIMARY KEY,
+          note TEXT,
+          created_at TEXT,
+          last_seen_run_id TEXT,
+          stars INTEGER,
+          confidence REAL,
+          language TEXT,
+          url TEXT
+        );
+      `);
+      return db;
+    })();
+  }
+  return libraryDbPromise;
+}
+
+async function syncRunToLibrary(run) {
+  const db = await getLibraryDb();
+  db.prepare(`INSERT OR REPLACE INTO runs (id, created_at, kind, topic, command_name, repo_count, idea_count, output)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(run.id, run.createdAt, run.kind, run.topic, run.command, run.profiles?.length || 0, run.ideas?.length || 0, run.output || null);
+
+  db.prepare('DELETE FROM repos WHERE run_id = ?').run(run.id);
+  db.prepare('DELETE FROM ideas WHERE run_id = ?').run(run.id);
+
+  const repoStmt = db.prepare(`INSERT OR REPLACE INTO repos
+    (run_id, full_name, url, language, stars, confidence, docs_quality, maintenance, capabilities, warnings)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  for (const repo of run.profiles || []) {
+    repoStmt.run(
+      run.id,
+      repo.fullName,
+      repo.url,
+      repo.language,
+      repo.stars || 0,
+      repo.scores?.confidence || 0,
+      repo.scores?.docsQuality || 0,
+      repo.scores?.maintenance || 0,
+      JSON.stringify(repo.capabilities || []),
+      JSON.stringify(repo.warnings || []),
+    );
+  }
+
+  const ideaStmt = db.prepare(`INSERT OR REPLACE INTO ideas
+    (run_id, idea_key, title, overall, confidence, market_angle, difficulty, risk, differentiation)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  for (const idea of run.ideas || []) {
+    ideaStmt.run(
+      run.id,
+      idea.key,
+      idea.title,
+      idea.scores?.overall || 0,
+      idea.scores?.confidence || 0,
+      idea.marketAngle || null,
+      idea.difficulty || null,
+      idea.risk || null,
+      idea.differentiation || null,
+    );
+  }
 }
 
 function timeStampId(date = new Date()) {
@@ -226,6 +334,7 @@ function normalizeRepoForHistory(profile) {
     capabilityMatches: profile.capabilityMatches,
     keywords: profile.keywords,
     warnings: profile.warnings,
+    qualityTier: profile.qualityTier,
     scores: profile.scores,
   };
 }
@@ -240,6 +349,7 @@ function normalizeIdeaForHistory(idea) {
     capabilities: idea.capabilities,
     theme: idea.theme,
     families: idea.families,
+    useCase: idea.useCase,
     marketAngle: idea.marketAngle,
     difficulty: idea.difficulty,
     risk: idea.risk,
@@ -277,6 +387,7 @@ async function saveRunHistory(run) {
   await ensureHistoryDir();
   const file = path.join(HISTORY_RUNS_DIR, `${run.id}.json`);
   await writeFile(file, JSON.stringify(run, null, 2) + '\n', 'utf8');
+  await syncRunToLibrary(run);
   return file;
 }
 
@@ -453,11 +564,12 @@ function detectCapabilities(repo, readme = '') {
 function docsSignals(readme = '', repo = {}) {
   const lower = readme.toLowerCase();
   const signalCount = DOC_SIGNAL_TERMS.reduce((sum, term) => sum + (lower.includes(term) ? 1 : 0), 0);
+  const qualityHits = QUALITY_SIGNAL_TERMS.reduce((sum, term) => sum + (lower.includes(term) ? 1 : 0), 0);
   const readmeLength = readme.length;
   const descriptionBonus = repo.description ? 1.2 : 0;
   const topicBonus = Math.min(1.5, (repo.topics || []).length * 0.25);
   const lengthScore = Math.min(5, readmeLength / 800);
-  return round(Math.min(10, lengthScore + signalCount * 0.9 + descriptionBonus + topicBonus));
+  return round(Math.min(10, lengthScore + signalCount * 0.8 + qualityHits * 0.45 + descriptionBonus + topicBonus));
 }
 
 function maintenanceSignals(repo = {}) {
@@ -471,6 +583,7 @@ function maintenanceSignals(repo = {}) {
 function qualitySignals(repo = {}, readme = '', caps = [], matches = []) {
   const hay = `${repo.name} ${repo.full_name} ${repo.description || ''} ${readme.slice(0, 4000)}`.toLowerCase();
   const negativeHits = NEGATIVE_SIGNAL_TERMS.filter(term => hay.includes(term));
+  const weakCodeHits = WEAK_CODE_SIGNALS.filter(term => hay.includes(term));
   const docsQuality = docsSignals(readme, repo);
   const maintenance = maintenanceSignals(repo);
   const capabilityConfidence = round(Math.min(10, matches.reduce((sum, item) => sum + Math.min(2.2, item.score * 1.4), 0)));
@@ -481,16 +594,18 @@ function qualitySignals(repo = {}, readme = '', caps = [], matches = []) {
     (repo.license ? 0.8 : 0)
   ));
   const confidence = round(Math.max(0, Math.min(10,
-    docsQuality * 0.28 + maintenance * 0.26 + capabilityConfidence * 0.28 + repoMaturity * 0.18 - negativeHits.length * 0.45
+    docsQuality * 0.28 + maintenance * 0.24 + capabilityConfidence * 0.26 + repoMaturity * 0.18 - negativeHits.length * 0.45 - weakCodeHits.length * 0.35
   )));
   const warnings = [];
   if (!repo.description) warnings.push('missing description');
   if (readme.length < 400) warnings.push('thin README');
   if (negativeHits.length) warnings.push(`possible demo/template signals: ${negativeHits.slice(0, 3).join(', ')}`);
+  if (weakCodeHits.length) warnings.push(`possible toy/sample signals: ${weakCodeHits.slice(0, 3).join(', ')}`);
   if ((repo.stargazers_count || 0) < 50) warnings.push('low adoption signal');
   if (maintenance < 4) warnings.push('maintenance looks weak');
   if (!caps.length) warnings.push('capabilities inferred weakly');
-  return { docsQuality, maintenance, capabilityConfidence, repoMaturity, confidence, warnings };
+  const tier = confidence >= 8 ? 'strong' : confidence >= 6 ? 'promising' : confidence >= 4.5 ? 'watch' : 'weak';
+  return { docsQuality, maintenance, capabilityConfidence, repoMaturity, confidence, warnings, tier };
 }
 
 function profileRepo(repo, readme = '') {
@@ -515,6 +630,7 @@ function profileRepo(repo, readme = '') {
     capabilityMatches,
     keywords: topKeywords(text),
     warnings: trust.warnings,
+    qualityTier: trust.tier,
     scores: {
       freshness: round(freshness),
       popularity: round(popularity),
@@ -524,6 +640,12 @@ function profileRepo(repo, readme = '') {
       capabilityConfidence: trust.capabilityConfidence,
       repoMaturity: trust.repoMaturity,
       confidence: trust.confidence,
+      breakdown: {
+        docsQuality: trust.docsQuality,
+        maintenance: trust.maintenance,
+        capabilityConfidence: trust.capabilityConfidence,
+        repoMaturity: trust.repoMaturity,
+      }
     }
   };
 }
@@ -603,6 +725,8 @@ function generateIdeas(profiles, maxIdeas = 6, topic = '') {
     const families = capabilityFamilies(caps);
     const buildability = Math.max(4, Math.min(10, round(11 - combo.length + archetype.match / 2 - Math.max(0, caps.length - 4) * 0.4)));
     const breakdown = scoreBreakdownForIdea(combo, archetype, caps, topic);
+    const repeatedFamilies = families.length <= 1;
+    const adjustedOverall = Math.max(0, round(score - (repeatedFamilies ? 0.4 : 0)));
 
     ideas.push({
       title: customizeTitle(archetype.title, uniqueWords, caps, topic),
@@ -614,11 +738,12 @@ function generateIdeas(profiles, maxIdeas = 6, topic = '') {
       theme: pickThemeWords(uniqueWords, caps).join(', '),
       families,
       marketAngle: marketAngleForFamilies(families, topic),
+      useCase: likelyUseCase(combo, families, topic),
       difficulty: difficultyLabel(buildability),
       risk: ideaRiskSummary(combo, caps),
       differentiation: differentiationSummary(combo, caps, topic),
       scores: {
-        overall: score,
+        overall: adjustedOverall,
         novelty: Math.min(10, round(capDiversity + archetype.match + (combo.length === 3 ? 1 : 0))),
         buildability,
         usefulness: Math.min(10, round(archetype.match * 2 + avgPopularity / 2)),
@@ -707,6 +832,14 @@ function marketAngleForFamilies(families = [], topic = '') {
   return 'Teams with repetitive research and integration work';
 }
 
+function likelyUseCase(combo = [], families = [], topic = '') {
+  if (families.includes('developer')) return 'Internal devtools copilot or engineering team workflow product';
+  if (families.includes('documents')) return 'Document intake, review, and operations workflow assistant';
+  if (families.includes('knowledge')) return 'Research workspace or private knowledge assistant';
+  if (/github|repo|startup/.test(topic.toLowerCase())) return 'Scouting and research workflow for founders or product teams';
+  return `Applied workflow for ${topic || 'automation-heavy teams'}`;
+}
+
 function ideaRiskSummary(combo = [], caps = []) {
   const warnings = union(combo.map(profile => profile.warnings || []));
   if (warnings.some(item => /maintenance/i.test(item))) return 'Dependency quality risk: one or more repos look weakly maintained.';
@@ -747,6 +880,56 @@ function trustSummary(profile) {
   };
 }
 
+function outputFormat(opts = {}, fallback = 'full') {
+  const format = String(opts.format || fallback).toLowerCase();
+  return ['full', 'compact', 'table'].includes(format) ? format : fallback;
+}
+
+function printRepoList(profiles, opts = {}) {
+  const format = outputFormat(opts, 'full');
+  if (format === 'table') {
+    console.table(profiles.map((profile, idx) => ({
+      '#': idx + 1,
+      repo: profile.fullName,
+      stars: profile.stars,
+      lang: profile.language,
+      trust: profile.scores.confidence,
+      tier: profile.qualityTier,
+      fresh: profile.scores.freshness,
+    })));
+    return;
+  }
+  if (format === 'compact') {
+    profiles.forEach((profile, idx) => {
+      console.log(`${idx + 1}. ${profile.fullName} ★${profile.stars} ${profile.language} trust ${profile.scores.confidence}/10 (${profile.qualityTier})`);
+    });
+    return;
+  }
+  profiles.forEach((profile, idx) => printRepo(profile, idx + 1));
+}
+
+function printIdeaList(ideas, opts = {}) {
+  const format = outputFormat(opts, 'full');
+  if (format === 'table') {
+    console.table(ideas.map((idea, idx) => ({
+      '#': idx + 1,
+      title: idea.title,
+      overall: idea.scores.overall,
+      confidence: idea.scores.confidence,
+      difficulty: idea.difficulty,
+      market: idea.marketAngle,
+    })));
+    return;
+  }
+  if (format === 'compact') {
+    ideas.forEach((idea, idx) => {
+      console.log(`${idx + 1}. ${idea.title} score ${idea.scores.overall}/10 | ${idea.difficulty} | ${idea.marketAngle}`);
+    });
+    return;
+  }
+  ideas.forEach((idea, idx) => printIdea(idea, idx + 1));
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -760,7 +943,7 @@ function printRepo(profile, i = null) {
   console.log(`${prefix}${profile.fullName}  ★ ${profile.stars}  ${profile.language}`);
   console.log(`   ${profile.description}`);
   console.log(`   Capabilities: ${profile.capabilities.join(', ')}`);
-  console.log(`   Updated: ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'} | Freshness: ${profile.scores.freshness}/10 | Confidence: ${profile.scores.confidence}/10`);
+  console.log(`   Updated: ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'} | Freshness: ${profile.scores.freshness}/10 | Confidence: ${profile.scores.confidence}/10 (${profile.qualityTier})`);
   console.log(`   Docs: ${profile.scores.docsQuality}/10 | Maintenance: ${profile.scores.maintenance}/10 | Capability evidence: ${profile.scores.capabilityConfidence}/10`);
   if (profile.capabilityMatches?.length) console.log(`   Evidence: ${profile.capabilityMatches.slice(0, 2).map(match => `${match.key} ⇢ ${match.evidence.join(', ')}`).join(' | ')}`);
   if (profile.warnings?.length) console.log(`   Warnings: ${profile.warnings.join('; ')}`);
@@ -816,6 +999,9 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
   const avgDocs = averageScore(profiles, 'docsQuality');
   const avgMaintenance = averageScore(profiles, 'maintenance');
   const topRepos = profiles.slice(0, 6);
+  const breakoutRepos = trending.filter(repo => repo.trendLabel === 'breakout').slice(0, 4);
+  const newRepos = trending.filter(repo => repo.trendLabel === 'new this window').slice(0, 4);
+  const watchlistRepos = trending.filter(repo => repo.trendLabel === 'watchlist').slice(0, 4);
   const capabilityCounts = new Map();
   for (const profile of profiles) for (const cap of profile.capabilities) capabilityCounts.set(cap, (capabilityCounts.get(cap) || 0) + 1);
   const capabilityBadges = [...capabilityCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
@@ -955,6 +1141,25 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
             </div>
             <div class="row-meta">${(repo.capabilities || []).map(cap => `<span class="badge">${escapeHtml(cap)}</span>`).join('')}</div>
           </article>`).join('')}
+      </div>
+    </section>` : ''}
+
+    ${trending.length ? `
+    <section class="panel section">
+      <h2>Trend watch</h2>
+      <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));">
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Breakout</h3>
+          ${breakoutRepos.length ? `<ul>${breakoutRepos.map(repo => `<li>${escapeHtml(repo.fullName)} (+${repo.lastDelta})</li>`).join('')}</ul>` : '<p class="muted">None yet</p>'}
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>New this window</h3>
+          ${newRepos.length ? `<ul>${newRepos.map(repo => `<li>${escapeHtml(repo.fullName)} · age ${repo.ageDays}d</li>`).join('')}</ul>` : '<p class="muted">None yet</p>'}
+        </div>
+        <div class="panel" style="background:rgba(15,23,48,.8);">
+          <h3>Watchlist</h3>
+          ${watchlistRepos.length ? `<ul>${watchlistRepos.map(repo => `<li>${escapeHtml(repo.fullName)} · score ${repo.trendScore}</li>`).join('')}</ul>` : '<p class="muted">None yet</p>'}
+        </div>
       </div>
     </section>` : ''}
 
@@ -1144,10 +1349,20 @@ async function latestRunFor(kind, topic) {
   return loadRunHistory(latest.id);
 }
 
-async function collectTrendingRepos({ limit = 8, topic = '' } = {}) {
-  const runs = await listRunHistory({ limit: 300, topic });
+async function collectTrendingRepos({ limit = 8, topic = '', days = 30 } = {}) {
+  const summaries = await listRunHistory({ limit: 300, topic });
+  const runs = [];
+  for (const summary of summaries.slice().reverse()) {
+    try {
+      runs.push(await loadRunHistory(summary.id));
+    } catch {
+      // ignore unreadable history file
+    }
+  }
+  const cutoffMs = days > 0 ? Date.now() - n(days, 30) * 86400000 : 0;
   const timeline = runs
     .filter(run => Array.isArray(run.profiles) && run.profiles.length)
+    .filter(run => !cutoffMs || new Date(run.createdAt).getTime() >= cutoffMs)
     .slice()
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
@@ -1204,6 +1419,7 @@ async function collectTrendingRepos({ limit = 8, topic = '' } = {}) {
     const freshnessBoost = latest.pushedAt ? Math.max(0, 4 - Math.min(4, (Date.now() - new Date(latest.pushedAt).getTime()) / 86400000 / 30)) : 0;
     const breakout = lastDelta >= 25 || recentMomentum >= 10;
     const consistent = deltas.filter(item => item.delta > 0).length >= Math.max(2, Math.ceil(deltas.length * 0.6));
+    const newThisWindow = ageDays <= Math.max(7, days * 0.35);
     const trendScore = round(Math.max(0, totalDelta) * 2 + Math.max(0, lastDelta) * 3 + Math.max(0, avgPerDay) * 2 + Math.max(0, recentMomentum) * 2 + freshnessBoost - Math.log10(ageDays + 1));
     trending.push({
       fullName: entry.fullName,
@@ -1218,10 +1434,11 @@ async function collectTrendingRepos({ limit = 8, topic = '' } = {}) {
       avgPerDay: round(avgPerDay),
       recentMomentum: round(recentMomentum),
       trendScore,
-      trendLabel: breakout ? 'breakout' : consistent ? 'steady riser' : 'watchlist',
+      trendLabel: breakout ? 'breakout' : newThisWindow ? 'new this window' : consistent ? 'steady riser' : 'watchlist',
       firstSeen: entry.firstSeen,
       lastSeen: entry.lastSeen,
       appearances: history.length,
+      ageDays: round(ageDays),
     });
   }
 
@@ -1391,6 +1608,152 @@ function buildScoutBrief(topic, profiles, ideas, trending = [], llmMeta = null) 
   return lines.join('\n');
 }
 
+async function libraryTopRepos({ limit = 10, topic = '' } = {}) {
+  const db = await getLibraryDb();
+  const rows = db.prepare(`
+    SELECT repos.full_name AS fullName, repos.language AS language, MAX(repos.stars) AS stars,
+           ROUND(AVG(repos.confidence), 1) AS avgConfidence,
+           ROUND(AVG(repos.docs_quality), 1) AS avgDocs,
+           ROUND(AVG(repos.maintenance), 1) AS avgMaintenance,
+           COUNT(*) AS appearances,
+           MIN(runs.created_at) AS firstSeen,
+           MAX(runs.created_at) AS lastSeen,
+           MAX(repos.url) AS url
+    FROM repos
+    JOIN runs ON runs.id = repos.run_id
+    WHERE (? = '' OR runs.topic = ?)
+    GROUP BY repos.full_name, repos.language
+    ORDER BY avgConfidence DESC, stars DESC, appearances DESC
+    LIMIT ?
+  `).all(topic, topic, limit);
+  return rows.map(row => ({ ...row }));
+}
+
+async function libraryTopIdeas({ limit = 10, topic = '' } = {}) {
+  const db = await getLibraryDb();
+  return db.prepare(`
+    SELECT ideas.title AS title,
+           ROUND(AVG(ideas.overall), 1) AS avgOverall,
+           ROUND(AVG(ideas.confidence), 1) AS avgConfidence,
+           COUNT(*) AS appearances,
+           MAX(ideas.market_angle) AS marketAngle,
+           MAX(ideas.difficulty) AS difficulty,
+           MAX(runs.topic) AS topic,
+           MAX(runs.created_at) AS lastSeen
+    FROM ideas
+    JOIN runs ON runs.id = ideas.run_id
+    WHERE (? = '' OR runs.topic = ?)
+    GROUP BY ideas.title
+    ORDER BY avgOverall DESC, avgConfidence DESC, appearances DESC
+    LIMIT ?
+  `).all(topic, topic, limit).map(row => ({ ...row }));
+}
+
+async function addBookmark(fullName, note = '') {
+  const recent = await latestProfileForRepo(fullName);
+  const db = await getLibraryDb();
+  db.prepare(`INSERT OR REPLACE INTO bookmarks
+    (full_name, note, created_at, last_seen_run_id, stars, confidence, language, url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(
+      fullName,
+      note || '',
+      new Date().toISOString(),
+      recent?.runId || null,
+      recent?.stars || 0,
+      recent?.confidence || 0,
+      recent?.language || null,
+      recent?.url || null,
+    );
+}
+
+async function latestProfileForRepo(fullName) {
+  const db = await getLibraryDb();
+  return db.prepare(`
+    SELECT repos.run_id AS runId, repos.full_name AS fullName, repos.stars AS stars, repos.confidence AS confidence,
+           repos.language AS language, repos.url AS url, runs.created_at AS createdAt
+    FROM repos JOIN runs ON runs.id = repos.run_id
+    WHERE repos.full_name = ?
+    ORDER BY runs.created_at DESC
+    LIMIT 1
+  `).get(fullName);
+}
+
+async function listBookmarks() {
+  const db = await getLibraryDb();
+  return db.prepare(`SELECT * FROM bookmarks ORDER BY created_at DESC`).all().map(row => ({ ...row }));
+}
+
+async function latestIdeaRun(topic = '') {
+  const entries = await listRunHistory({ limit: 50, kind: 'ideas', topic });
+  if (!entries.length) throw new Error('No saved idea runs available yet. Run `repo-scout ideas` first.');
+  return loadRunHistory(entries[0].id);
+}
+
+function pickIdeaFromRun(run, opts = {}) {
+  const index = Math.max(1, n(opts.idea, 1)) - 1;
+  const idea = run.ideas?.[index];
+  if (!idea) throw new Error(`Idea ${index + 1} not found in run ${run.id}.`);
+  return idea;
+}
+
+function buildIdeaSpec(idea, run) {
+  const lines = [
+    `# Product Spec: ${idea.title}`,
+    '',
+    `- Source topic: ${run.topic}`,
+    `- Source run: ${run.id}`,
+    `- Overall score: ${idea.scores?.overall}/10`,
+    `- Confidence: ${idea.scores?.confidence || 'n/a'}/10`,
+    `- Difficulty: ${idea.difficulty}`,
+    `- Market angle: ${idea.marketAngle}`,
+    `- Use case: ${idea.useCase || 'not specified'}`,
+    '',
+    '## Pitch',
+    idea.pitch || '',
+    '',
+    '## Why this combination',
+    idea.why || '',
+    '',
+    '## Differentiation',
+    idea.differentiation || '',
+    '',
+    '## Risks',
+    idea.risk || '',
+    '',
+    '## Suggested MVP',
+    ...(idea.mvp || []).map(step => `- ${step}`),
+    '',
+    '## Source repos',
+    ...(idea.repos || []).map(repo => `- ${repo.name} — ${repo.url}`),
+  ];
+  return lines.join('\n');
+}
+
+function buildOpenClawPrompt(idea, run) {
+  return [
+    `Use this Repo Scout idea as the working brief: ${idea.title}.`,
+    '',
+    `Topic: ${run.topic}`,
+    `Pitch: ${idea.pitch}`,
+    `Use case: ${idea.useCase || 'n/a'}`,
+    `Market angle: ${idea.marketAngle || 'n/a'}`,
+    `Differentiation: ${idea.differentiation || 'n/a'}`,
+    `Risk: ${idea.risk || 'n/a'}`,
+    '',
+    `Source repos: ${(idea.repos || []).map(repo => repo.name).join(', ')}`,
+    `Capabilities: ${(idea.capabilities || []).join(', ')}`,
+    '',
+    'Please produce:',
+    '1. a crisp product concept',
+    '2. target user and top pain point',
+    '3. MVP scope and non-goals',
+    '4. technical architecture using the source repos',
+    '5. execution plan in 2-week milestones',
+    '6. biggest product and technical risks with mitigations',
+  ].join('\n');
+}
+
 async function emit(opts, payload, textPrinter, markdownBuilder) {
   let output;
   if (opts.json) output = JSON.stringify(payload, null, 2);
@@ -1433,7 +1796,7 @@ async function cmdSearch(opts) {
     { topic, count: profiles.length, repos: profiles },
     () => {
       console.log(`\nFound ${profiles.length} repos for: "${topic}"\n`);
-      profiles.forEach((p, idx) => printRepo(p, idx + 1));
+      printRepoList(profiles, opts);
     },
     () => [`# Repo Scout Search: ${topic}`, '', ...profiles.map((p, idx) => profileMarkdown(p, idx + 1))].join('\n')
   );
@@ -1468,7 +1831,7 @@ async function cmdIdeas(opts) {
     () => {
       console.log(`\nRepo Scout ideas for: "${topic}"`);
       console.log(`Analyzed ${profiles.length} repos.\n`);
-      ideas.forEach((idea, idx) => printIdea(idea, idx + 1));
+      printIdeaList(ideas, opts);
       if (llmMeta) console.log(`\nLLM enrichment: ${llmMeta.ok ? 'enabled' : 'skipped'} (${llmMeta.reason})`);
       console.log('\nTip: use --no-readme for faster runs, or set GITHUB_TOKEN for better API limits.');
     },
@@ -1485,7 +1848,7 @@ async function cmdReport(opts) {
   if (!ideas.length) throw new Error('No strong combinations found. Try a broader topic or lower --min-stars.');
   const file = path.resolve(process.cwd(), opts.out || `repo-scout-report-${slugify(topic)}.html`);
   const previous = await latestRunFor('report', topic);
-  const trending = await collectTrendingRepos({ limit: 8, topic });
+  const trending = await collectTrendingRepos({ limit: 8, topic, days: n(opts.days, 30) });
   const current = {
     id: buildRunId('report', topic),
     createdAt: new Date().toISOString(),
@@ -1511,7 +1874,7 @@ async function cmdBrief(opts) {
   const profiles = await collectProfiles(topic, opts);
   const generated = generateIdeas(profiles, n(opts.ideas, 4), topic);
   const { ideas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, generated, opts);
-  const trending = await collectTrendingRepos({ limit: 6, topic });
+  const trending = await collectTrendingRepos({ limit: 6, topic, days: n(opts.days, 30) });
   const brief = buildScoutBrief(topic, profiles, ideas, trending, llmMeta);
   const run = {
     id: buildRunId('brief', topic),
@@ -1536,11 +1899,21 @@ async function cmdBrief(opts) {
 
 async function cmdTrending(opts) {
   const topic = resolveTopic(opts);
-  const entries = await collectTrendingRepos({ limit: n(opts.limit, 10), topic });
+  const entries = await collectTrendingRepos({ limit: n(opts.limit, 10), topic, days: n(opts.days, 30) });
   await emit(
     opts,
     { topic, count: entries.length, repos: entries },
-    () => printTrending(entries, topic),
+    () => {
+      if (outputFormat(opts, 'full') === 'table') {
+        console.table(entries.map((repo, idx) => ({ '#': idx + 1, repo: repo.fullName, stars: repo.stars, label: repo.trendLabel, delta: repo.lastDelta, total: repo.totalDelta, score: repo.trendScore })));
+        return;
+      }
+      if (outputFormat(opts, 'full') === 'compact') {
+        entries.forEach((repo, idx) => console.log(`${idx + 1}. ${repo.fullName} ${repo.trendLabel} Δ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta} score ${repo.trendScore}`));
+        return;
+      }
+      printTrending(entries, topic);
+    },
     () => trendingMarkdown(entries, topic),
   );
 }
@@ -1554,7 +1927,17 @@ async function cmdHistory(opts) {
   await emit(
     opts,
     { count: entries.length, runs: entries },
-    () => printHistory(entries),
+    () => {
+      if (outputFormat(opts, 'full') === 'table') {
+        console.table(entries.map((entry, idx) => ({ '#': idx + 1, id: entry.id, kind: entry.kind, topic: entry.topic, repos: entry.repoCount, ideas: entry.ideaCount, createdAt: entry.createdAt })));
+        return;
+      }
+      if (outputFormat(opts, 'full') === 'compact') {
+        entries.forEach((entry, idx) => console.log(`${idx + 1}. ${entry.kind} | ${entry.topic} | repos ${entry.repoCount} | ideas ${entry.ideaCount} | ${entry.createdAt}`));
+        return;
+      }
+      printHistory(entries);
+    },
     () => historyMarkdown(entries),
   );
 }
@@ -1590,6 +1973,49 @@ function cmdPacks() {
   });
 }
 
+async function cmdLibrary(opts) {
+  const mode = (opts._[0] || 'top-repos').toLowerCase();
+  if (mode === 'top-repos') {
+    const rows = await libraryTopRepos({ limit: n(opts.limit, 10), topic: opts.topic || '' });
+    console.table(rows);
+    return;
+  }
+  if (mode === 'ideas') {
+    const rows = await libraryTopIdeas({ limit: n(opts.limit, 10), topic: opts.topic || '' });
+    console.table(rows);
+    return;
+  }
+  throw new Error('Usage: repo-scout library top-repos|ideas [--limit 10] [--topic topic]');
+}
+
+async function cmdBookmark(opts) {
+  const mode = (opts._[0] || '').toLowerCase();
+  if (mode === 'add') {
+    const fullName = opts._[1];
+    if (!fullName || !fullName.includes('/')) throw new Error('Usage: repo-scout bookmark add owner/repo [--note text]');
+    await addBookmark(fullName, opts.note || '');
+    console.log(`Bookmarked ${fullName}`);
+    return;
+  }
+  if (mode === 'list') {
+    console.table(await listBookmarks());
+    return;
+  }
+  throw new Error('Usage: repo-scout bookmark add owner/repo [--note text] | bookmark list');
+}
+
+async function cmdSpec(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = pickIdeaFromRun(run, opts);
+  console.log(`\n${buildIdeaSpec(idea, run)}\n`);
+}
+
+async function cmdOpenClawPrompt(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = pickIdeaFromRun(run, opts);
+  console.log(`\n${buildOpenClawPrompt(idea, run)}\n`);
+}
+
 async function cmdConfigInit(opts) {
   const target = await writeDefaultConfig(Boolean(opts.force));
   console.log(`Wrote config template to ${target}`);
@@ -1610,9 +2036,10 @@ async function cmdExplain(opts) {
       console.log(`   Topics: ${profile.topics.slice(0, 12).join(', ') || 'none'}`);
       console.log(`   Keywords: ${profile.keywords.join(', ')}`);
       console.log(`   Scores: freshness ${profile.scores.freshness}/10, popularity ${profile.scores.popularity}/10, integration ${profile.scores.integration}/10`);
+      console.log(`   Breakdown: docs ${profile.scores.breakdown.docsQuality}/10, maintenance ${profile.scores.breakdown.maintenance}/10, capability ${profile.scores.breakdown.capabilityConfidence}/10, maturity ${profile.scores.breakdown.repoMaturity}/10`);
       console.log(`   README chars analyzed: ${readme.length}`);
     },
-    () => `${profileMarkdown(profile)}\n- **Topics:** ${profile.topics.slice(0, 12).join(', ') || 'none'}\n- **Keywords:** ${profile.keywords.join(', ')}\n- **Scores:** freshness ${profile.scores.freshness}/10, popularity ${profile.scores.popularity}/10, integration ${profile.scores.integration}/10\n- **README chars analyzed:** ${readme.length}\n`
+    () => `${profileMarkdown(profile)}\n- **Topics:** ${profile.topics.slice(0, 12).join(', ') || 'none'}\n- **Keywords:** ${profile.keywords.join(', ')}\n- **Scores:** freshness ${profile.scores.freshness}/10, popularity ${profile.scores.popularity}/10, integration ${profile.scores.integration}/10\n- **Breakdown:** docs ${profile.scores.breakdown.docsQuality}/10, maintenance ${profile.scores.breakdown.maintenance}/10, capability ${profile.scores.breakdown.capabilityConfidence}/10, maturity ${profile.scores.breakdown.repoMaturity}/10\n- **README chars analyzed:** ${readme.length}\n`
   );
 }
 
@@ -1628,6 +2055,10 @@ async function main() {
     if (cmd === 'version' || cmd === '--version') return console.log(VERSION);
     if (cmd === 'packs') return cmdPacks();
     if (cmd === 'config-init') return await cmdConfigInit(opts);
+    if (cmd === 'library') return await cmdLibrary(opts);
+    if (cmd === 'bookmark') return await cmdBookmark(opts);
+    if (cmd === 'spec') return await cmdSpec(opts);
+    if (cmd === 'openclaw-prompt') return await cmdOpenClawPrompt(opts);
     if (cmd === 'search') return await cmdSearch(opts);
     if (cmd === 'ideas') return await cmdIdeas(opts);
     if (cmd === 'report') return await cmdReport(opts);
