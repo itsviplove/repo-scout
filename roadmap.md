@@ -4,7 +4,7 @@
 
 - MVP is done and published.
 - Public repo search, profiling, idea generation, and HTML reporting work.
-- Repo trust scoring, trending, diffing, config loading, SQLite library persistence, repeat-aware daily scouting, and OpenClaw-native spec/prompt generation now work locally.
+- Repo trust scoring, trending, diffing, config loading, SQLite library persistence, repeat-aware daily scouting, weekly scouting summaries, and OpenClaw-native spec/prompt generation now work locally.
 
 ## Done in current enhancement pass
 
@@ -22,18 +22,33 @@
 - `brief` command for OpenClaw-native scouting flow ✅
 - `spec` and `openclaw-prompt` commands for agent execution handoff ✅
 - Repeat-aware `daily-scout` digests with saved history ✅
+- Commit/release-aware repo quality heuristics ✅
 - Watchlist refresh / movers from bookmarks ✅
-- Scoped library views for recurring repos and strongest topic lanes ✅
+- Scoped library views for recurring repos, strongest topic lanes, idea families, and opportunity themes ✅
+- Weekly scouting briefs and schedule preview for automation planning ✅
+- Richer report sections for repo-quality breakdowns and watchlist context ✅
 
 ## Next release focus
 
-- Improve repo-quality signals with commit/release-aware heuristics
-- Add richer report sections for repo-quality breakdowns and bookmarks
-- Add better LLM auth/fallback handling and prompt presets
-- Add best-idea family clustering and recurring opportunity themes
+- Better LLM auth/fallback handling and prompt presets
+- Stronger idea-family scoring and cross-run differentiation tuning
+- Deeper automation hooks for scheduled OpenClaw workflows
+- Optional local dashboard / richer interactive UI
+
+## v1.0 direction
+
+Goal: evolve Repo Scout from a strong scouting CLI into a Scout-to-Startup OS.
+
+Target v1.0 capabilities:
+- opportunity scoring across repo quality, timing, and repeat strength
+- startup-thesis generation for the best ideas
+- stronger execution handoff into OpenClaw prompts/specs
+- deeper clustering and opportunity-memory views
+- automation-first weekly/daily scouting workflows
+- optional local dashboard for review and decision-making
 
 ## Later
 
 - embeddings/clustering
-- scheduled/OpenClaw automation flows
-- weekly scouting digests / cron-ready exports
+- startup-thesis generation
+- full Scout-to-Startup OS / v1.0 execution layer

@@ -8,13 +8,13 @@ Discover interesting public GitHub repositories and turn them into buildable pro
 
 Repo Scout is now opinionated about **trust**, **trend quality**, and **repeatable scouting** — not just raw GitHub search.
 
-As of `v0.5.0`, it also has **terminal views**, a **SQLite scouting library**, **bookmarks/watchlist workflows**, **repeat-aware daily digests**, and **OpenClaw-native spec/prompt outputs**.
+As of `v0.9.0`, it also has **commit/release-aware repo quality signals**, a **SQLite scouting library**, **bookmarks/watchlist workflows**, **repeat-aware daily digests**, **weekly scouting briefs**, **idea-family memory**, and **OpenClaw-native spec/prompt outputs**.
 
 ## What it does
 
 - Searches GitHub by topic or preset topic pack
 - Fetches repo metadata and optional README content
-- Profiles repos for capabilities, freshness, popularity, integration potential, docs quality, maintenance, and trust/confidence
+- Profiles repos for capabilities, freshness, popularity, integration potential, docs quality, maintenance, commit/release health, and trust/confidence
 - Shows capability evidence and warnings so rankings are easier to trust
 - Adds quality tiers and clearer score breakdowns for repo trust
 - Tracks star momentum / rising repos across saved runs
@@ -26,9 +26,9 @@ As of `v0.5.0`, it also has **terminal views**, a **SQLite scouting library**, *
 - Maintains a local SQLite scouting library from saved runs
 - Supports bookmarks for repos you want to watch
 - Can refresh watchlist snapshots and rank bookmark movers from saved scouting history
-- Can surface recurring repos and strongest topic lanes from the local library
+- Can surface recurring repos, strongest topic lanes, idea families, and recurring opportunity themes from the local library
 - Loads defaults from `.repo-scout.json`
-- Can produce an OpenClaw-friendly scouting brief
+- Can produce an OpenClaw-friendly scouting brief or weekly scout digest
 - Can generate a product spec or an OpenClaw execution prompt from a saved idea
 - Optional `--llm` mode can enrich ideas through an OpenClaw-compatible HTTP endpoint
 - Caches API responses locally
@@ -48,6 +48,9 @@ node ./bin/repo-scout.js ideas "ai agents automation" --limit 12 --ideas 6
 - `ideas` — generate ranked project ideas
 - `report` — generate a static HTML report
 - `brief` — generate an OpenClaw-friendly scouting brief
+- `daily-scout` — generate a repeat-aware daily scout digest
+- `weekly-scout` — generate a weekly scouting brief from recent history
+- `schedule-preview` — preview pack rotation for future automated runs
 - `trending` — show rising repos from saved history
 - `history` — list saved runs
 - `diff` — compare two saved runs
@@ -66,9 +69,13 @@ node ./bin/repo-scout.js trending --topic-pack agents --days 30 --format table
 node ./bin/repo-scout.js library top-repos --limit 10
 node ./bin/repo-scout.js library recurring-repos --limit 10
 node ./bin/repo-scout.js library topics --limit 10
+node ./bin/repo-scout.js library idea-families --limit 8
+node ./bin/repo-scout.js library opportunity-themes --limit 8
 node ./bin/repo-scout.js spec --latest --idea 1
 node ./bin/repo-scout.js ideas "browser automation" --llm
 node ./bin/repo-scout.js daily-scout --style discord
+node ./bin/repo-scout.js weekly-scout --days 7 --style discord
+node ./bin/repo-scout.js schedule-preview --days 7
 ```
 
 ## Terminal views
@@ -103,6 +110,8 @@ node ./bin/repo-scout.js library top-repos --limit 10
 node ./bin/repo-scout.js library ideas --limit 10
 node ./bin/repo-scout.js library recurring-repos --limit 10
 node ./bin/repo-scout.js library topics --limit 10
+node ./bin/repo-scout.js library idea-families --limit 8
+node ./bin/repo-scout.js library opportunity-themes --limit 8
 node ./bin/repo-scout.js bookmark add browser-use/browser-use --note "watch this"
 node ./bin/repo-scout.js bookmark list
 node ./bin/repo-scout.js bookmark refresh --all
@@ -169,6 +178,9 @@ node ./bin/repo-scout.js ideas --topic-pack agents --llm
 - OpenClaw-friendly brief flow ✅
 - Product spec + OpenClaw prompt generation ✅
 - Optional LLM-powered summaries ✅ (best-effort endpoint mode)
+- Commit/release-aware quality heuristics ✅
+- Richer HTML quality + watchlist sections ✅
 - Repeat-aware daily scouting digests ✅
+- Weekly scouting briefs + schedule preview ✅
 - Watchlist refresh + movers ✅
-- Library recurring-repo and topic-lane views ✅
+- Library recurring-repo, topic-lane, idea-family, and opportunity-theme views ✅
