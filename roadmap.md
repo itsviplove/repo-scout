@@ -4,28 +4,26 @@
 
 - MVP is done and published.
 - Public repo search, profiling, idea generation, and HTML reporting work.
-- Smoke tests passed before upload.
+- Repo trust scoring, trending, diffing, config loading, and OpenClaw-friendly brief generation now work locally.
 
-## Next steps
+## Done in current enhancement pass
 
-1. Saved run history.
-2. Diff between runs.
-3. Better HTML report sections.
-4. Trending / rising-star detection.
-5. Config file + token handling.
-6. Optional LLM summaries.
+- Trust / confidence scoring with capability evidence and warnings ✅
+- Stronger trending labels and momentum scoring ✅
+- Better HTML summary cards and richer idea cards ✅
+- `.repo-scout.json` config loading + `config-init` ✅
+- Optional `--llm` idea enrichment via OpenClaw-compatible HTTP endpoint ✅
+- `brief` command for OpenClaw-native scouting flow ✅
 
-## In progress / next release focus
+## Next release focus
 
-- History snapshots for search / ideas / report âœ…
-- `diff` command for saved scans âœ…
-- HTML report comparison section for prior-vs-current runs âœ…
-- Trending / rising-star detection âœ…
-- Filterable HTML dashboard âœ…
+- Improve capability heuristics to reduce false positives further
+- Add table/compact terminal views
+- Add richer report sections for repo-quality breakdowns
+- Add better LLM fallback/error handling and prompt presets
 
 ## Later
 
 - SQLite library
-- table/compact CLI views
 - embeddings/clustering
-- OpenClaw integration
+- scheduled/OpenClaw automation flows

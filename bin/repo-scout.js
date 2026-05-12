@@ -5,14 +5,18 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = path.resolve(SCRIPT_DIR, '..');
 const CACHE_DIR = path.join(PROJECT_DIR, '.repo-scout-cache');
 const HISTORY_DIR = path.join(PROJECT_DIR, '.repo-scout-history');
 const HISTORY_RUNS_DIR = path.join(HISTORY_DIR, 'runs');
+const DEFAULT_CONFIG_FILE = '.repo-scout.json';
 const DEFAULT_TOPICS = 'ai agents automation developer tools';
 const STOPWORDS = new Set('the a an and or of to in for with on by from is are be as at it this that into your you ai llm open source github https http com org img alt src href badge shield true false null undefined user users repo repos repository get build second first production-ready platform use using based toolkit framework'.split(' '));
+const NEGATIVE_SIGNAL_TERMS = ['awesome', 'curated', 'list of', 'boilerplate', 'template', 'starter', 'example', 'examples', 'demo', 'showcase', 'tutorial', 'course'];
+const DOC_SIGNAL_TERMS = ['install', 'usage', 'quickstart', 'getting started', 'api', 'configuration', 'license', 'contributing'];
+const DEFAULT_LLM_MODEL = process.env.OPENCLAW_MODEL || 'openclaw/default';
 
 const TOPIC_PACKS = {
   agents: 'ai agents automation developer tools',
@@ -90,7 +94,7 @@ const IDEA_ARCHETYPES = [
 ];
 
 function usage() {
-  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--out report.html]\n  repo-scout trending [topic] [--limit 10] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report] [--topic topic]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation"\n  repo-scout ideas --topic-pack browser --ideas 5\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout trending --topic-pack agents\n  repo-scout history --limit 10\n  repo-scout diff --latest --kind report\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nOptional env:\n  GITHUB_TOKEN   increases GitHub API rate limits\n`);
+  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout trending [topic] [--limit 10] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief] [--topic topic]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation"\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout trending --topic-pack agents\n  repo-scout history --limit 10\n  repo-scout diff --latest --kind report\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
 }
 
 function parseArgs(argv) {
@@ -121,8 +125,73 @@ function safeSlug(value) {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'run';
 }
 
+async function fileExists(target) {
+  try {
+    await readFile(target, 'utf8');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadConfigFile(explicitPath = '') {
+  const candidates = [];
+  if (explicitPath) candidates.push(path.resolve(process.cwd(), explicitPath));
+  candidates.push(path.resolve(process.cwd(), DEFAULT_CONFIG_FILE));
+  if (path.resolve(process.cwd()) !== PROJECT_DIR) {
+    candidates.push(path.join(PROJECT_DIR, DEFAULT_CONFIG_FILE));
+  }
+
+  for (const candidate of candidates) {
+    if (!(await fileExists(candidate))) continue;
+    try {
+      const raw = await readFile(candidate, 'utf8');
+      const data = JSON.parse(raw);
+      return { path: candidate, data };
+    } catch (error) {
+      throw new Error(`Could not parse config file ${candidate}: ${error.message}`);
+    }
+  }
+
+  return { path: '', data: {} };
+}
+
+function applyConfigDefaults(opts = {}, config = {}) {
+  const merged = { ...opts };
+  for (const [key, value] of Object.entries(config || {})) {
+    if (merged[key] === undefined && merged[toCliKey(key)] === undefined) {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+function toCliKey(value = '') {
+  return String(value).replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+}
+
+async function writeDefaultConfig(force = false) {
+  const target = path.resolve(process.cwd(), DEFAULT_CONFIG_FILE);
+  if (!force && await fileExists(target)) {
+    throw new Error(`${DEFAULT_CONFIG_FILE} already exists. Use --force to overwrite.`);
+  }
+  const template = {
+    'topic-pack': 'agents',
+    limit: 10,
+    ideas: 4,
+    'min-stars': 150,
+    days: 365,
+    sort: 'stars',
+    'no-readme': false,
+    llm: false,
+    outputDir: 'examples'
+  };
+  await writeFile(target, JSON.stringify(template, null, 2) + '\n', 'utf8');
+  return target;
+}
+
 function pickRunOpts(opts = {}) {
-  const keys = ['topic-pack', 'limit', 'min-stars', 'language', 'days', 'sort', 'ideas', 'no-readme', 'json', 'markdown', 'out'];
+  const keys = ['topic-pack', 'limit', 'min-stars', 'language', 'days', 'sort', 'ideas', 'no-readme', 'json', 'markdown', 'out', 'llm', 'config'];
   const picked = {};
   for (const key of keys) {
     if (opts[key] !== undefined) picked[key] = opts[key];
@@ -154,7 +223,9 @@ function normalizeRepoForHistory(profile) {
     topics: profile.topics,
     pushedAt: profile.pushedAt,
     capabilities: profile.capabilities,
+    capabilityMatches: profile.capabilityMatches,
     keywords: profile.keywords,
+    warnings: profile.warnings,
     scores: profile.scores,
   };
 }
@@ -169,6 +240,10 @@ function normalizeIdeaForHistory(idea) {
     capabilities: idea.capabilities,
     theme: idea.theme,
     families: idea.families,
+    marketAngle: idea.marketAngle,
+    difficulty: idea.difficulty,
+    risk: idea.risk,
+    differentiation: idea.differentiation,
     scores: idea.scores,
     key: idea.key,
   };
@@ -351,22 +426,82 @@ function topKeywords(text, count = 8) {
   return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, count).map(([w]) => w);
 }
 
-function detectCapabilities(repo, readme = '') {
+function detectCapabilityMatches(repo, readme = '') {
   const hay = `${repo.name} ${repo.full_name} ${repo.description || ''} ${(repo.topics || []).join(' ')} ${readme.slice(0, 9000)}`.toLowerCase();
   const scored = CAPABILITIES.map(cap => ({
     key: cap.key,
-    score: cap.terms.reduce((s, term) => s + (hay.includes(term) ? 1 : 0), 0)
-  })).filter(x => x.score >= (x.key === 'browser automation' ? 1 : 1)).sort((a, b) => b.score - a.score);
-  return scored.slice(0, 4).map(x => x.key);
+    matches: cap.terms.filter(term => hay.includes(term)),
+  }))
+    .map(item => ({ ...item, score: item.matches.length }))
+    .filter(item => item.score >= 1)
+    .sort((a, b) => b.score - a.score);
+  const normalized = scored
+    .map(item => ({
+      key: item.key,
+      score: item.matches.length,
+      evidence: item.matches.slice(0, 4),
+    }))
+    .filter(item => item.score >= 1)
+    .sort((a, b) => b.score - a.score);
+  return normalized.slice(0, 4);
+}
+
+function detectCapabilities(repo, readme = '') {
+  return detectCapabilityMatches(repo, readme).map(item => item.key);
+}
+
+function docsSignals(readme = '', repo = {}) {
+  const lower = readme.toLowerCase();
+  const signalCount = DOC_SIGNAL_TERMS.reduce((sum, term) => sum + (lower.includes(term) ? 1 : 0), 0);
+  const readmeLength = readme.length;
+  const descriptionBonus = repo.description ? 1.2 : 0;
+  const topicBonus = Math.min(1.5, (repo.topics || []).length * 0.25);
+  const lengthScore = Math.min(5, readmeLength / 800);
+  return round(Math.min(10, lengthScore + signalCount * 0.9 + descriptionBonus + topicBonus));
+}
+
+function maintenanceSignals(repo = {}) {
+  const pushedDays = repo.pushed_at ? Math.round((Date.now() - new Date(repo.pushed_at).getTime()) / 86400000) : 9999;
+  const recencyScore = Math.max(0, 10 - Math.min(10, pushedDays / 45));
+  const forkSignal = Math.min(2.5, Math.log10((repo.forks_count || 0) + 1) * 1.3);
+  const issuePenalty = Math.min(2, Math.log10((repo.open_issues_count || 0) + 1));
+  return round(Math.max(0, Math.min(10, recencyScore + forkSignal - issuePenalty * 0.35)));
+}
+
+function qualitySignals(repo = {}, readme = '', caps = [], matches = []) {
+  const hay = `${repo.name} ${repo.full_name} ${repo.description || ''} ${readme.slice(0, 4000)}`.toLowerCase();
+  const negativeHits = NEGATIVE_SIGNAL_TERMS.filter(term => hay.includes(term));
+  const docsQuality = docsSignals(readme, repo);
+  const maintenance = maintenanceSignals(repo);
+  const capabilityConfidence = round(Math.min(10, matches.reduce((sum, item) => sum + Math.min(2.2, item.score * 1.4), 0)));
+  const repoMaturity = round(Math.min(10,
+    Math.log10((repo.stargazers_count || 0) + 1) * 1.7 +
+    Math.log10((repo.forks_count || 0) + 1) * 1.4 +
+    (repo.homepage ? 0.6 : 0) +
+    (repo.license ? 0.8 : 0)
+  ));
+  const confidence = round(Math.max(0, Math.min(10,
+    docsQuality * 0.28 + maintenance * 0.26 + capabilityConfidence * 0.28 + repoMaturity * 0.18 - negativeHits.length * 0.45
+  )));
+  const warnings = [];
+  if (!repo.description) warnings.push('missing description');
+  if (readme.length < 400) warnings.push('thin README');
+  if (negativeHits.length) warnings.push(`possible demo/template signals: ${negativeHits.slice(0, 3).join(', ')}`);
+  if ((repo.stargazers_count || 0) < 50) warnings.push('low adoption signal');
+  if (maintenance < 4) warnings.push('maintenance looks weak');
+  if (!caps.length) warnings.push('capabilities inferred weakly');
+  return { docsQuality, maintenance, capabilityConfidence, repoMaturity, confidence, warnings };
 }
 
 function profileRepo(repo, readme = '') {
   const text = `${repo.description || ''}\n${(repo.topics || []).join(' ')}\n${readme.slice(0, 6000)}`;
-  const caps = detectCapabilities(repo, readme);
+  const capabilityMatches = detectCapabilityMatches(repo, readme);
+  const caps = capabilityMatches.map(item => item.key);
   const pushedDays = repo.pushed_at ? Math.round((Date.now() - new Date(repo.pushed_at).getTime()) / 86400000) : 9999;
   const freshness = Math.max(0, 10 - Math.min(10, pushedDays / 30));
   const popularity = Math.min(10, Math.log10((repo.stargazers_count || 1) + 1) * 2);
   const integration = Math.min(10, caps.length * 2 + ((repo.topics || []).length > 4 ? 1 : 0) + (readme.length > 1000 ? 1 : 0));
+  const trust = qualitySignals(repo, readme, caps, capabilityMatches);
   return {
     fullName: repo.full_name,
     url: repo.html_url,
@@ -377,8 +512,19 @@ function profileRepo(repo, readme = '') {
     topics: repo.topics || [],
     pushedAt: repo.pushed_at,
     capabilities: caps.length ? caps : ['general utility'],
+    capabilityMatches,
     keywords: topKeywords(text),
-    scores: { freshness: round(freshness), popularity: round(popularity), integration: round(integration) }
+    warnings: trust.warnings,
+    scores: {
+      freshness: round(freshness),
+      popularity: round(popularity),
+      integration: round(integration),
+      docsQuality: trust.docsQuality,
+      maintenance: trust.maintenance,
+      capabilityConfidence: trust.capabilityConfidence,
+      repoMaturity: trust.repoMaturity,
+      confidence: trust.confidence,
+    }
   };
 }
 
@@ -448,12 +594,15 @@ function generateIdeas(profiles, maxIdeas = 6, topic = '') {
     const capDiversity = caps.length;
     const avgPopularity = combo.reduce((s, p) => s + p.scores.popularity, 0) / combo.length;
     const avgFreshness = combo.reduce((s, p) => s + p.scores.freshness, 0) / combo.length;
+    const avgConfidence = combo.reduce((s, p) => s + (p.scores.confidence || 0), 0) / combo.length;
     const complement = archetype.match * 2 + capDiversity;
-    const rawScore = complement * 1.3 + avgPopularity * 0.8 + avgFreshness * 0.5;
+    const rawScore = complement * 1.15 + avgPopularity * 0.65 + avgFreshness * 0.45 + avgConfidence * 0.8;
     const score = Math.min(10, round(rawScore / 3 + topicBoost(topic, archetype.title)));
     const repoNames = combo.map(p => p.fullName).join(' + ');
     const uniqueWords = topKeywords(combo.map(p => `${p.description} ${p.keywords.join(' ')}`).join(' '), 5);
     const families = capabilityFamilies(caps);
+    const buildability = Math.max(4, Math.min(10, round(11 - combo.length + archetype.match / 2 - Math.max(0, caps.length - 4) * 0.4)));
+    const breakdown = scoreBreakdownForIdea(combo, archetype, caps, topic);
 
     ideas.push({
       title: customizeTitle(archetype.title, uniqueWords, caps, topic),
@@ -464,11 +613,18 @@ function generateIdeas(profiles, maxIdeas = 6, topic = '') {
       capabilities: caps,
       theme: pickThemeWords(uniqueWords, caps).join(', '),
       families,
+      marketAngle: marketAngleForFamilies(families, topic),
+      difficulty: difficultyLabel(buildability),
+      risk: ideaRiskSummary(combo, caps),
+      differentiation: differentiationSummary(combo, caps, topic),
       scores: {
         overall: score,
         novelty: Math.min(10, round(capDiversity + archetype.match + (combo.length === 3 ? 1 : 0))),
-        buildability: Math.max(4, Math.min(10, round(11 - combo.length + archetype.match / 2))),
-        usefulness: Math.min(10, round(archetype.match * 2 + avgPopularity / 2))
+        buildability,
+        usefulness: Math.min(10, round(archetype.match * 2 + avgPopularity / 2)),
+        confidence: round(avgConfidence),
+        marketReadiness: Math.min(10, round(avgConfidence * 0.45 + avgPopularity * 0.35 + avgFreshness * 0.2)),
+        breakdown,
       },
       key: `${archetype.title}:${repoNames}`
     });
@@ -531,6 +687,66 @@ function capabilityDescriptor(caps, fallbackWord = '') {
   return 'Project';
 }
 
+function averageScore(profiles, key) {
+  if (!profiles.length) return 0;
+  return round(profiles.reduce((sum, profile) => sum + (profile.scores?.[key] || 0), 0) / profiles.length);
+}
+
+function difficultyLabel(buildability) {
+  if (buildability >= 8.5) return 'easy';
+  if (buildability >= 7) return 'medium';
+  return 'hard';
+}
+
+function marketAngleForFamilies(families = [], topic = '') {
+  if (families.includes('developer')) return 'Developer workflow and team productivity';
+  if (families.includes('knowledge')) return 'Knowledge workers and research-heavy teams';
+  if (families.includes('documents')) return 'Ops teams with repetitive intake or review work';
+  if (families.includes('vision')) return 'Monitoring, QA, or visual automation workflows';
+  if (/repo|github|developer/.test(topic.toLowerCase())) return 'Developers exploring new tooling or automation';
+  return 'Teams with repetitive research and integration work';
+}
+
+function ideaRiskSummary(combo = [], caps = []) {
+  const warnings = union(combo.map(profile => profile.warnings || []));
+  if (warnings.some(item => /maintenance/i.test(item))) return 'Dependency quality risk: one or more repos look weakly maintained.';
+  if (caps.length >= 5) return 'Scope risk: strong capability mix, but integration complexity is non-trivial.';
+  if (combo.length >= 3) return 'Execution risk: three-repo combinations need sharper product focus.';
+  return 'Main risk is differentiation rather than raw feasibility.';
+}
+
+function differentiationSummary(combo = [], caps = [], topic = '') {
+  const repoNames = combo.map(profile => profile.fullName.split('/').pop()).slice(0, 3);
+  const capabilityLine = caps.slice(0, 3).join(', ');
+  return `Differentiate by packaging ${repoNames.join(' + ')} into a tighter ${topic || capabilityLine} workflow with opinionated defaults.`;
+}
+
+function scoreBreakdownForIdea(combo = [], archetype, caps = [], topic = '') {
+  const avgPopularity = combo.reduce((sum, profile) => sum + (profile.scores?.popularity || 0), 0) / Math.max(1, combo.length);
+  const avgFreshness = combo.reduce((sum, profile) => sum + (profile.scores?.freshness || 0), 0) / Math.max(1, combo.length);
+  const avgConfidence = combo.reduce((sum, profile) => sum + (profile.scores?.confidence || 0), 0) / Math.max(1, combo.length);
+  const capDiversity = caps.length;
+  const complement = archetype.match * 2 + capDiversity;
+  return {
+    complement: round(complement),
+    popularity: round(avgPopularity),
+    freshness: round(avgFreshness),
+    confidence: round(avgConfidence),
+    topicFit: round(topicBoost(topic, archetype.title)),
+  };
+}
+
+function trustSummary(profile) {
+  const evidence = (profile.capabilityMatches || []).slice(0, 2).map(match => `${match.key}: ${match.evidence.join(', ')}`).join(' | ');
+  return {
+    confidence: profile.scores?.confidence || 0,
+    docsQuality: profile.scores?.docsQuality || 0,
+    maintenance: profile.scores?.maintenance || 0,
+    evidence,
+    warnings: profile.warnings || [],
+  };
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -541,10 +757,13 @@ function escapeHtml(value) {
 
 function printRepo(profile, i = null) {
   const prefix = i == null ? '' : `${i}. `;
-  console.log(`${prefix}${profile.fullName}  â˜… ${profile.stars}  ${profile.language}`);
+  console.log(`${prefix}${profile.fullName}  ★ ${profile.stars}  ${profile.language}`);
   console.log(`   ${profile.description}`);
   console.log(`   Capabilities: ${profile.capabilities.join(', ')}`);
-  console.log(`   Updated: ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'} | Freshness: ${profile.scores.freshness}/10`);
+  console.log(`   Updated: ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'} | Freshness: ${profile.scores.freshness}/10 | Confidence: ${profile.scores.confidence}/10`);
+  console.log(`   Docs: ${profile.scores.docsQuality}/10 | Maintenance: ${profile.scores.maintenance}/10 | Capability evidence: ${profile.scores.capabilityConfidence}/10`);
+  if (profile.capabilityMatches?.length) console.log(`   Evidence: ${profile.capabilityMatches.slice(0, 2).map(match => `${match.key} ⇢ ${match.evidence.join(', ')}`).join(' | ')}`);
+  if (profile.warnings?.length) console.log(`   Warnings: ${profile.warnings.join('; ')}`);
   console.log(`   URL: ${profile.url}`);
 }
 
@@ -552,16 +771,19 @@ function printIdea(idea, i) {
   console.log(`\n${i}. ${idea.title}  [overall ${idea.scores.overall}/10]`);
   console.log(`   Repos: ${idea.repos.map(r => r.name).join(' + ')}`);
   if (idea.theme) console.log(`   Theme: ${idea.theme}`);
+  if (idea.marketAngle) console.log(`   Market: ${idea.marketAngle}`);
+  if (idea.differentiation) console.log(`   Differentiation: ${idea.differentiation}`);
   console.log(`   Pitch: ${idea.pitch}`);
   console.log(`   Why: ${idea.why}`);
-  console.log(`   Scores: novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10`);
+  console.log(`   Scores: novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10, confidence ${idea.scores.confidence}/10`);
+  console.log(`   Difficulty: ${idea.difficulty} | Risk: ${idea.risk}`);
   console.log(`   MVP:`);
   for (const step of idea.mvp) console.log(`   - ${step}`);
 }
 
 function profileMarkdown(profile, i = null) {
   const head = i == null ? `## ${profile.fullName}` : `## ${i}. ${profile.fullName}`;
-  return `${head}\n\n- **Stars:** ${profile.stars}\n- **Language:** ${profile.language}\n- **Updated:** ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'}\n- **Freshness:** ${profile.scores.freshness}/10\n- **Description:** ${profile.description}\n- **Capabilities:** ${profile.capabilities.join(', ')}\n- **URL:** ${profile.url}\n`;
+  return `${head}\n\n- **Stars:** ${profile.stars}\n- **Language:** ${profile.language}\n- **Updated:** ${profile.pushedAt ? profile.pushedAt.slice(0, 10) : 'unknown'}\n- **Freshness:** ${profile.scores.freshness}/10\n- **Confidence:** ${profile.scores.confidence}/10\n- **Docs quality:** ${profile.scores.docsQuality}/10\n- **Maintenance:** ${profile.scores.maintenance}/10\n- **Description:** ${profile.description}\n- **Capabilities:** ${profile.capabilities.join(', ')}\n- **Evidence:** ${(profile.capabilityMatches || []).slice(0, 2).map(match => `${match.key}: ${match.evidence.join(', ')}`).join(' | ') || 'none'}\n- **Warnings:** ${(profile.warnings || []).join('; ') || 'none'}\n- **URL:** ${profile.url}\n`;
 }
 
 function ideasMarkdown(topic, profiles, ideas) {
@@ -571,7 +793,11 @@ function ideasMarkdown(topic, profiles, ideas) {
     lines.push(`- **Repos:** ${idea.repos.map(r => `[${r.name}](${r.url})`).join(' + ')}`);
     lines.push(`- **Score:** ${idea.scores.overall}`);
     if (idea.theme) lines.push(`- **Theme:** ${idea.theme}`);
-    lines.push(`- **Scores:** novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10`);
+    if (idea.marketAngle) lines.push(`- **Market angle:** ${idea.marketAngle}`);
+    if (idea.differentiation) lines.push(`- **Differentiation:** ${idea.differentiation}`);
+    lines.push(`- **Scores:** novelty ${idea.scores.novelty}/10, buildability ${idea.scores.buildability}/10, usefulness ${idea.scores.usefulness}/10, confidence ${idea.scores.confidence}/10`);
+    lines.push(`- **Difficulty:** ${idea.difficulty}`);
+    lines.push(`- **Risk:** ${idea.risk}`);
     lines.push(`- **Pitch:** ${idea.pitch}`);
     lines.push(`- **Why:** ${idea.why}`);
     lines.push('', '**MVP:**');
@@ -586,6 +812,9 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
   const topLanguages = [...new Set(profiles.map(profile => profile.language).filter(Boolean))].slice(0, 8);
   const totalStars = profiles.reduce((sum, profile) => sum + (profile.stars || 0), 0);
   const avgStars = profiles.length ? round(totalStars / profiles.length) : 0;
+  const avgConfidence = averageScore(profiles, 'confidence');
+  const avgDocs = averageScore(profiles, 'docsQuality');
+  const avgMaintenance = averageScore(profiles, 'maintenance');
   const topRepos = profiles.slice(0, 6);
   const capabilityCounts = new Map();
   for (const profile of profiles) for (const cap of profile.capabilities) capabilityCounts.set(cap, (capabilityCounts.get(cap) || 0) + 1);
@@ -642,17 +871,20 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
         <div class="stat"><div class="num">${ideas.length}</div><div class="muted">Ideas generated</div></div>
         <div class="stat"><div class="num">${Math.max(0, ...ideas.map(idea => idea.scores.overall))}</div><div class="muted">Top score</div></div>
         <div class="stat"><div class="num">${avgStars}</div><div class="muted">Avg stars</div></div>
+        <div class="stat"><div class="num">${avgConfidence}</div><div class="muted">Avg trust</div></div>
+        <div class="stat"><div class="num">${avgDocs}</div><div class="muted">Docs quality</div></div>
+        <div class="stat"><div class="num">${avgMaintenance}</div><div class="muted">Maintenance</div></div>
       </div>
       <div class="badges">
         ${topLanguages.map(language => `<span class="badge">${escapeHtml(language)}</span>`).join('')}
       </div>
-      <p class="muted small section">Generated at ${escapeHtml(generatedAt)}${opts['topic-pack'] ? ` Â· topic pack ${escapeHtml(opts['topic-pack'])}` : ''}</p>
+      <p class="muted small section">Generated at ${escapeHtml(generatedAt)}${opts['topic-pack'] ? ` · topic pack ${escapeHtml(opts['topic-pack'])}` : ''}</p>
     </section>
 
     <section class="panel section">
       <h2>Capability coverage</h2>
       <div class="badges">
-        ${capabilityBadges.map(([cap, count]) => `<span class="badge">${escapeHtml(cap)} Â· ${count}</span>`).join('')}
+        ${capabilityBadges.map(([cap, count]) => `<span class="badge">${escapeHtml(cap)} · ${count}</span>`).join('')}
       </div>
     </section>
 
@@ -695,11 +927,13 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
             <h3><a href="${escapeHtml(profile.url)}">${escapeHtml(profile.fullName)}</a></h3>
             <p class="muted small">${escapeHtml(profile.description)}</p>
             <div class="row-meta">
-              <span class="badge">â˜… ${profile.stars}</span>
+              <span class="badge">★ ${profile.stars}</span>
               <span class="badge">${escapeHtml(profile.language)}</span>
               <span class="badge">fresh ${profile.scores.freshness}/10</span>
+              <span class="badge">trust ${profile.scores.confidence}/10</span>
             </div>
             <div class="row-meta">${profile.capabilities.map(cap => `<span class="badge">${escapeHtml(cap)}</span>`).join('')}</div>
+            ${profile.warnings?.length ? `<p class="muted small">Warnings: ${escapeHtml(profile.warnings.join('; '))}</p>` : ''}
           </article>`).join('')}
       </div>
     </section>
@@ -713,10 +947,11 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
             <h3><a href="${escapeHtml(repo.url)}">${escapeHtml(repo.fullName)}</a></h3>
             <p class="muted small">${escapeHtml(repo.description || '')}</p>
             <div class="row-meta">
+              <span class="badge">${escapeHtml(repo.trendLabel)}</span>
               <span class="badge">trend ${repo.trendScore}</span>
-              <span class="badge">Î” ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta}</span>
+              <span class="badge">Δ ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta}</span>
               <span class="badge">total ${repo.totalDelta >= 0 ? '+' : ''}${repo.totalDelta}</span>
-              <span class="badge">â˜… ${repo.stars}</span>
+              <span class="badge">★ ${repo.stars}</span>
             </div>
             <div class="row-meta">${(repo.capabilities || []).map(cap => `<span class="badge">${escapeHtml(cap)}</span>`).join('')}</div>
           </article>`).join('')}
@@ -732,11 +967,11 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
         <div class="stat"><div class="num">${comparison.added.length}</div><div class="muted">New repos</div></div>
         <div class="stat"><div class="num">${comparison.removed.length}</div><div class="muted">Removed repos</div></div>
       </div>
-      <p class="muted small">Compared ${escapeHtml(comparison.from.createdAt || comparison.from.id)} â†’ ${escapeHtml(comparison.to.createdAt || comparison.to.id)}</p>
+      <p class="muted small">Compared ${escapeHtml(comparison.from.createdAt || comparison.from.id)} → ${escapeHtml(comparison.to.createdAt || comparison.to.id)}</p>
       <div class="grid ideas" style="grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));">
         <div class="panel" style="background:rgba(15,23,48,.8);">
           <h3>New repos</h3>
-          ${comparison.added.length ? `<ul>${comparison.added.slice(0, 8).map(repo => `<li><a href="${escapeHtml(repo.url)}">${escapeHtml(repo.fullName)}</a> (${repo.stars} â˜…)</li>`).join('')}</ul>` : '<p class="muted">None</p>'}
+          ${comparison.added.length ? `<ul>${comparison.added.slice(0, 8).map(repo => `<li><a href="${escapeHtml(repo.url)}">${escapeHtml(repo.fullName)}</a> (${repo.stars} ★)</li>`).join('')}</ul>` : '<p class="muted">None</p>'}
         </div>
         <div class="panel" style="background:rgba(15,23,48,.8);">
           <h3>Removed repos</h3>
@@ -746,7 +981,7 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
       ${comparison.starChanges.length ? `
       <div class="panel" style="margin-top:14px; background:rgba(15,23,48,.8);">
         <h3>Star changes</h3>
-        <ul>${comparison.starChanges.slice(0, 10).map(change => `<li>${escapeHtml(change.name)}: ${change.oldStars} â†’ ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})</li>`).join('')}</ul>
+        <ul>${comparison.starChanges.slice(0, 10).map(change => `<li>${escapeHtml(change.name)}: ${change.oldStars} → ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})</li>`).join('')}</ul>
       </div>` : ''}
     </section>` : ''}
 
@@ -758,11 +993,14 @@ function buildHtmlReport(topic, profiles, ideas, opts = {}, comparison = null, t
             <h3>${idx + 1}. ${escapeHtml(idea.title)}</h3>
             <p class="score">Overall ${idea.scores.overall}/10</p>
             ${idea.theme ? `<p class="muted small">Theme: ${escapeHtml(idea.theme)}</p>` : ''}
+            ${idea.marketAngle ? `<p class="muted small">Market: ${escapeHtml(idea.marketAngle)}</p>` : ''}
             <p>${escapeHtml(idea.pitch)}</p>
             <p class="small"><strong>Repos:</strong> ${idea.repos.map(repo => `<a href="${escapeHtml(repo.url)}">${escapeHtml(repo.name)}</a>`).join(' + ')}</p>
             <p class="small"><strong>Why:</strong> ${escapeHtml(idea.why)}</p>
+            <p class="small"><strong>Differentiation:</strong> ${escapeHtml(idea.differentiation || '')}</p>
+            <p class="small"><strong>Risk:</strong> ${escapeHtml(idea.risk || '')}</p>
             <div class="repo-tags">${idea.capabilities.map(cap => `<span class="badge">${escapeHtml(cap)}</span>`).join('')}</div>
-            <p class="small section"><strong>Score mix:</strong> novelty ${idea.scores.novelty}/10 Â· buildability ${idea.scores.buildability}/10 Â· usefulness ${idea.scores.usefulness}/10</p>
+            <p class="small section"><strong>Score mix:</strong> novelty ${idea.scores.novelty}/10 · buildability ${idea.scores.buildability}/10 · usefulness ${idea.scores.usefulness}/10 · confidence ${idea.scores.confidence}/10</p>
             <ol>
               ${idea.mvp.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
             </ol>
@@ -872,13 +1110,13 @@ function diffMarkdown(diff) {
     `- **Idea delta:** ${diff.ideaCountDelta >= 0 ? '+' : ''}${diff.ideaCountDelta}`,
     '',
     '## New repos',
-    ...(diff.added.length ? diff.added.map(repo => `- [${repo.fullName}](${repo.url}) (${repo.stars} â˜…)`) : ['- None']),
+    ...(diff.added.length ? diff.added.map(repo => `- [${repo.fullName}](${repo.url}) (${repo.stars} ★)`) : ['- None']),
     '',
     '## Removed repos',
     ...(diff.removed.length ? diff.removed.map(repo => `- ${repo.fullName}`) : ['- None']),
   ];
   if (diff.starChanges.length) {
-    lines.push('', '## Star changes', ...diff.starChanges.map(change => `- ${change.name}: ${change.oldStars} â†’ ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})`));
+    lines.push('', '## Star changes', ...diff.starChanges.map(change => `- ${change.name}: ${change.oldStars} → ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})`));
   }
   return lines.join('\n');
 }
@@ -890,12 +1128,12 @@ function printDiff(diff) {
   console.log(`Repo delta: ${diff.repoCountDelta >= 0 ? '+' : ''}${diff.repoCountDelta}`);
   console.log(`Idea delta: ${diff.ideaCountDelta >= 0 ? '+' : ''}${diff.ideaCountDelta}`);
   console.log(`New repos: ${diff.added.length}`);
-  diff.added.slice(0, 10).forEach(repo => console.log(`  + ${repo.fullName} (${repo.stars} â˜…)`));
+  diff.added.slice(0, 10).forEach(repo => console.log(`  + ${repo.fullName} (${repo.stars} ★)`));
   console.log(`Removed repos: ${diff.removed.length}`);
   diff.removed.slice(0, 10).forEach(repo => console.log(`  - ${repo.fullName}`));
   if (diff.starChanges.length) {
     console.log('Star changes:');
-    diff.starChanges.slice(0, 10).forEach(change => console.log(`  * ${change.name}: ${change.oldStars} â†’ ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})`));
+    diff.starChanges.slice(0, 10).forEach(change => console.log(`  * ${change.name}: ${change.oldStars} → ${change.newStars} (${change.delta >= 0 ? '+' : ''}${change.delta})`));
   }
 }
 
@@ -963,7 +1201,10 @@ async function collectTrendingRepos({ limit = 8, topic = '' } = {}) {
     const avgPerDay = deltas.length ? deltas.reduce((sum, item) => sum + item.perDay, 0) / deltas.length : 0;
     const recentMomentum = deltas.slice(-3).reduce((sum, item) => sum + item.perDay, 0) / Math.max(1, Math.min(3, deltas.length));
     const ageDays = Math.max(1, (latest.time - history[0].time) / 86400000);
-    const trendScore = round(Math.max(0, totalDelta) * 2 + Math.max(0, lastDelta) * 3 + Math.max(0, avgPerDay) * 2 + Math.max(0, recentMomentum) * 2 - Math.log10(ageDays + 1));
+    const freshnessBoost = latest.pushedAt ? Math.max(0, 4 - Math.min(4, (Date.now() - new Date(latest.pushedAt).getTime()) / 86400000 / 30)) : 0;
+    const breakout = lastDelta >= 25 || recentMomentum >= 10;
+    const consistent = deltas.filter(item => item.delta > 0).length >= Math.max(2, Math.ceil(deltas.length * 0.6));
+    const trendScore = round(Math.max(0, totalDelta) * 2 + Math.max(0, lastDelta) * 3 + Math.max(0, avgPerDay) * 2 + Math.max(0, recentMomentum) * 2 + freshnessBoost - Math.log10(ageDays + 1));
     trending.push({
       fullName: entry.fullName,
       url: entry.url,
@@ -977,6 +1218,7 @@ async function collectTrendingRepos({ limit = 8, topic = '' } = {}) {
       avgPerDay: round(avgPerDay),
       recentMomentum: round(recentMomentum),
       trendScore,
+      trendLabel: breakout ? 'breakout' : consistent ? 'steady riser' : 'watchlist',
       firstSeen: entry.firstSeen,
       lastSeen: entry.lastSeen,
       appearances: history.length,
@@ -996,8 +1238,8 @@ function printTrending(entries, topic = '') {
   }
   console.log(`\nTrending repos${scope}\n`);
   entries.forEach((repo, idx) => {
-    console.log(`${idx + 1}. ${repo.fullName}  â˜… ${repo.stars}  ${repo.language}`);
-    console.log(`   Î” stars: ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta} | total: ${repo.totalDelta >= 0 ? '+' : ''}${repo.totalDelta} | score: ${repo.trendScore}`);
+    console.log(`${idx + 1}. ${repo.fullName}  ★ ${repo.stars}  ${repo.language}`);
+    console.log(`   ${repo.trendLabel} | Δ stars: ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta} | total: ${repo.totalDelta >= 0 ? '+' : ''}${repo.totalDelta} | score: ${repo.trendScore}`);
     console.log(`   seen: ${repo.appearances} runs | first: ${repo.firstSeen} | last: ${repo.lastSeen}`);
     console.log(`   ${repo.description}`);
   });
@@ -1012,11 +1254,140 @@ function trendingMarkdown(entries, topic = '') {
     lines.push(`- **Delta:** ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta}`);
     lines.push(`- **Total delta:** ${repo.totalDelta >= 0 ? '+' : ''}${repo.totalDelta}`);
     lines.push(`- **Trend score:** ${repo.trendScore}`);
+    lines.push(`- **Trend label:** ${repo.trendLabel}`);
     lines.push(`- **Language:** ${repo.language}`);
     lines.push(`- **Appearances:** ${repo.appearances}`);
     lines.push(`- **Updated:** ${repo.lastSeen}`);
     lines.push(`- **URL:** ${repo.url}`, '');
   }
+  return lines.join('\n');
+}
+
+function extractJsonBlock(text = '') {
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) return fence[1].trim();
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start >= 0 && end > start) return text.slice(start, end + 1);
+  const objStart = text.indexOf('{');
+  const objEnd = text.lastIndexOf('}');
+  if (objStart >= 0 && objEnd > objStart) return text.slice(objStart, objEnd + 1);
+  return text.trim();
+}
+
+async function maybeEnrichIdeasWithLlm(topic, profiles, ideas, opts = {}) {
+  if (!opts.llm) return { ideas, llmMeta: null };
+  const baseUrl = String(opts['openclaw-base-url'] || process.env.OPENCLAW_BASE_URL || '').trim();
+  if (!baseUrl) {
+    return {
+      ideas,
+      llmMeta: { ok: false, reason: 'OPENCLAW_BASE_URL not set; skipped LLM enrichment.' }
+    };
+  }
+
+  const prompt = {
+    topic,
+    repos: profiles.slice(0, 8).map(profile => ({
+      fullName: profile.fullName,
+      description: profile.description,
+      capabilities: profile.capabilities,
+      confidence: profile.scores?.confidence,
+      warnings: profile.warnings,
+    })),
+    ideas: ideas.map((idea, index) => ({
+      index,
+      key: idea.key,
+      title: idea.title,
+      pitch: idea.pitch,
+      marketAngle: idea.marketAngle,
+      risk: idea.risk,
+      differentiation: idea.differentiation,
+      difficulty: idea.difficulty,
+    }))
+  };
+
+  const res = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(process.env.OPENCLAW_GATEWAY_TOKEN ? { Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}` } : {}),
+    },
+    body: JSON.stringify({
+      model: opts['openclaw-model'] || process.env.OPENCLAW_MODEL || DEFAULT_LLM_MODEL,
+      messages: [
+        { role: 'system', content: 'You are improving startup/research idea briefs. Return only strict JSON.' },
+        { role: 'user', content: `Sharpen these repo-scout ideas. Return a JSON array with one item per idea, preserving index and key. For each item include: index, key, title, pitch, marketAngle, risk, differentiation, difficulty. Keep each field short, concrete, and non-hype. Input: ${JSON.stringify(prompt)}` }
+      ],
+      temperature: 0.4,
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    return { ideas, llmMeta: { ok: false, reason: `LLM enrichment failed: ${res.status} ${body.slice(0, 160)}` } };
+  }
+
+  const data = await res.json();
+  const content = data?.choices?.[0]?.message?.content || '';
+  let parsed;
+  try {
+    parsed = JSON.parse(extractJsonBlock(content));
+  } catch (error) {
+    return { ideas, llmMeta: { ok: false, reason: `Could not parse LLM JSON: ${error.message}` } };
+  }
+
+  const records = Array.isArray(parsed) ? parsed : Array.isArray(parsed.items) ? parsed.items : [];
+  const byKey = new Map(records.map(item => [item.key || `${item.index}`, item]));
+  const enriched = ideas.map((idea, index) => {
+    const item = byKey.get(idea.key) || byKey.get(String(index));
+    if (!item) return idea;
+    return {
+      ...idea,
+      title: item.title || idea.title,
+      pitch: item.pitch || idea.pitch,
+      marketAngle: item.marketAngle || idea.marketAngle,
+      risk: item.risk || idea.risk,
+      differentiation: item.differentiation || idea.differentiation,
+      difficulty: item.difficulty || idea.difficulty,
+    };
+  });
+  return { ideas: enriched, llmMeta: { ok: true, reason: 'Ideas enriched via OpenClaw-compatible LLM endpoint.' } };
+}
+
+function buildScoutBrief(topic, profiles, ideas, trending = [], llmMeta = null) {
+  const topProfiles = profiles.slice(0, 5);
+  const lines = [
+    `# Repo Scout Brief: ${topic}`,
+    '',
+    `- Repos analyzed: ${profiles.length}`,
+    `- Ideas generated: ${ideas.length}`,
+    `- Avg trust: ${averageScore(profiles, 'confidence')}/10`,
+  ];
+  if (llmMeta) lines.push(`- LLM enrichment: ${llmMeta.ok ? 'enabled' : 'skipped'} (${llmMeta.reason})`);
+  lines.push('', '## Best repos to inspect', '');
+  topProfiles.forEach((profile, index) => {
+    lines.push(`${index + 1}. **${profile.fullName}** — ${profile.description}`);
+    lines.push(`   - trust ${profile.scores.confidence}/10 · docs ${profile.scores.docsQuality}/10 · maintenance ${profile.scores.maintenance}/10`);
+    lines.push(`   - capabilities: ${profile.capabilities.join(', ')}`);
+    if (profile.warnings?.length) lines.push(`   - warnings: ${profile.warnings.join('; ')}`);
+  });
+  if (trending.length) {
+    lines.push('', '## Rising repos', '');
+    trending.slice(0, 5).forEach((repo, index) => {
+      lines.push(`${index + 1}. **${repo.fullName}** — ${repo.trendLabel}, Δ ${repo.lastDelta >= 0 ? '+' : ''}${repo.lastDelta}, total ${repo.totalDelta >= 0 ? '+' : ''}${repo.totalDelta}`);
+    });
+  }
+  lines.push('', '## Best ideas', '');
+  ideas.slice(0, 5).forEach((idea, index) => {
+    lines.push(`${index + 1}. **${idea.title}** — score ${idea.scores.overall}/10`);
+    lines.push(`   - pitch: ${idea.pitch}`);
+    lines.push(`   - market: ${idea.marketAngle}`);
+    lines.push(`   - difficulty: ${idea.difficulty}`);
+    lines.push(`   - risk: ${idea.risk}`);
+    lines.push(`   - differentiation: ${idea.differentiation}`);
+  });
+  lines.push('', '## Suggested next actions', '', '- Inspect the top 3 trust-scored repos in depth.', '- Re-run report after another scan to improve trending confidence.', '- Pick one idea with medium/easy difficulty and convert it into a product spec.');
   return lines.join('\n');
 }
 
@@ -1033,10 +1404,19 @@ async function emit(opts, payload, textPrinter, markdownBuilder) {
   }
 }
 
+async function collectProfiles(topic, opts = {}) {
+  const repos = await searchRepos(topic, opts);
+  const profiles = [];
+  for (const repo of repos) {
+    const readme = opts['no-readme'] ? '' : await getReadme(repo.full_name);
+    profiles.push(profileRepo(repo, readme));
+  }
+  return profiles.sort((a, b) => (b.scores.confidence - a.scores.confidence) || (b.stars - a.stars));
+}
+
 async function cmdSearch(opts) {
   const topic = resolveTopic(opts);
-  const repos = await searchRepos(topic, opts);
-  const profiles = repos.map(r => profileRepo(r));
+  const profiles = (await collectProfiles(topic, { ...opts, 'no-readme': true }));
   const run = {
     id: buildRunId('search', topic),
     createdAt: new Date().toISOString(),
@@ -1062,14 +1442,10 @@ async function cmdSearch(opts) {
 
 async function cmdIdeas(opts) {
   const topic = resolveTopic(opts);
-  const repos = await searchRepos(topic, opts);
-  const profiles = [];
-  for (const repo of repos) {
-    const readme = opts['no-readme'] ? '' : await getReadme(repo.full_name);
-    profiles.push(profileRepo(repo, readme));
-  }
+  const profiles = await collectProfiles(topic, opts);
   const maxIdeas = n(opts.ideas, 6);
-  const ideas = generateIdeas(profiles, maxIdeas, topic);
+  const generated = generateIdeas(profiles, maxIdeas, topic);
+  const { ideas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, generated, opts);
   if (!ideas.length) {
     console.log('No strong combinations found. Try a broader topic or lower --min-stars.');
     return;
@@ -1084,14 +1460,16 @@ async function cmdIdeas(opts) {
     profiles: profiles.map(normalizeRepoForHistory),
     ideas: ideas.map(normalizeIdeaForHistory),
     output: opts.out || (opts.json ? 'json' : opts.markdown ? 'markdown' : 'stdout'),
+    llmMeta,
   };
   await emit(
     opts,
-    { topic, analyzed: profiles.length, repos: profiles, ideas },
+    { topic, analyzed: profiles.length, repos: profiles, ideas, llmMeta },
     () => {
       console.log(`\nRepo Scout ideas for: "${topic}"`);
       console.log(`Analyzed ${profiles.length} repos.\n`);
       ideas.forEach((idea, idx) => printIdea(idea, idx + 1));
+      if (llmMeta) console.log(`\nLLM enrichment: ${llmMeta.ok ? 'enabled' : 'skipped'} (${llmMeta.reason})`);
       console.log('\nTip: use --no-readme for faster runs, or set GITHUB_TOKEN for better API limits.');
     },
     () => ideasMarkdown(topic, profiles, ideas)
@@ -1101,13 +1479,9 @@ async function cmdIdeas(opts) {
 
 async function cmdReport(opts) {
   const topic = resolveTopic(opts);
-  const repos = await searchRepos(topic, opts);
-  const profiles = [];
-  for (const repo of repos) {
-    const readme = opts['no-readme'] ? '' : await getReadme(repo.full_name);
-    profiles.push(profileRepo(repo, readme));
-  }
-  const ideas = generateIdeas(profiles, n(opts.ideas, 6), topic);
+  const profiles = await collectProfiles(topic, opts);
+  const generated = generateIdeas(profiles, n(opts.ideas, 6), topic);
+  const { ideas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, generated, opts);
   if (!ideas.length) throw new Error('No strong combinations found. Try a broader topic or lower --min-stars.');
   const file = path.resolve(process.cwd(), opts.out || `repo-scout-report-${slugify(topic)}.html`);
   const previous = await latestRunFor('report', topic);
@@ -1122,12 +1496,42 @@ async function cmdReport(opts) {
     profiles: profiles.map(normalizeRepoForHistory),
     ideas: ideas.map(normalizeIdeaForHistory),
     output: file,
+    llmMeta,
   };
   const comparison = previous ? compareRuns(previous, current) : null;
   await writeFile(file, buildHtmlReport(topic, profiles, ideas, opts, comparison, trending), 'utf8');
   current.comparison = comparison;
   await saveRunHistory(current);
   console.log(`Wrote HTML report to ${file}`);
+  if (llmMeta) console.log(`LLM enrichment: ${llmMeta.ok ? 'enabled' : 'skipped'} (${llmMeta.reason})`);
+}
+
+async function cmdBrief(opts) {
+  const topic = resolveTopic(opts);
+  const profiles = await collectProfiles(topic, opts);
+  const generated = generateIdeas(profiles, n(opts.ideas, 4), topic);
+  const { ideas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, generated, opts);
+  const trending = await collectTrendingRepos({ limit: 6, topic });
+  const brief = buildScoutBrief(topic, profiles, ideas, trending, llmMeta);
+  const run = {
+    id: buildRunId('brief', topic),
+    createdAt: new Date().toISOString(),
+    kind: 'brief',
+    topic,
+    command: 'brief',
+    opts: pickRunOpts(opts),
+    profiles: profiles.map(normalizeRepoForHistory),
+    ideas: ideas.map(normalizeIdeaForHistory),
+    output: opts.out || (opts.json ? 'json' : opts.markdown ? 'markdown' : 'stdout'),
+    llmMeta,
+  };
+  await emit(
+    opts,
+    { topic, brief, repos: profiles, ideas, trending, llmMeta },
+    () => console.log(`\n${brief}\n`),
+    () => brief,
+  );
+  await saveRunHistory(run);
 }
 
 async function cmdTrending(opts) {
@@ -1186,6 +1590,11 @@ function cmdPacks() {
   });
 }
 
+async function cmdConfigInit(opts) {
+  const target = await writeDefaultConfig(Boolean(opts.force));
+  console.log(`Wrote config template to ${target}`);
+}
+
 async function cmdExplain(opts) {
   const fullName = opts._[0];
   if (!fullName || !fullName.includes('/')) throw new Error('Usage: repo-scout explain owner/repo');
@@ -1208,14 +1617,21 @@ async function cmdExplain(opts) {
 }
 
 async function main() {
-  const { cmd, opts } = parseArgs(process.argv.slice(2));
+  const { cmd, opts: rawOpts } = parseArgs(process.argv.slice(2));
   try {
+    const loadedConfig = await loadConfigFile(rawOpts.config || '');
+    const opts = applyConfigDefaults(rawOpts, loadedConfig.data || {});
+    if (loadedConfig.path && !opts.json && !opts.markdown && cmd !== 'config-init') {
+      console.log(`Using config: ${loadedConfig.path}`);
+    }
     if (cmd === 'help' || cmd === '--help' || cmd === '-h') return usage();
     if (cmd === 'version' || cmd === '--version') return console.log(VERSION);
     if (cmd === 'packs') return cmdPacks();
+    if (cmd === 'config-init') return await cmdConfigInit(opts);
     if (cmd === 'search') return await cmdSearch(opts);
     if (cmd === 'ideas') return await cmdIdeas(opts);
     if (cmd === 'report') return await cmdReport(opts);
+    if (cmd === 'brief') return await cmdBrief(opts);
     if (cmd === 'trending') return await cmdTrending(opts);
     if (cmd === 'history') return await cmdHistory(opts);
     if (cmd === 'diff') return await cmdDiff(opts);
