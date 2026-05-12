@@ -4,7 +4,7 @@
 
 - MVP is done and published.
 - Public repo search, profiling, idea generation, and HTML reporting work.
-- Repo trust scoring, trending, diffing, config loading, SQLite library persistence, and OpenClaw-native spec/prompt generation now work locally.
+- Repo trust scoring, trending, diffing, config loading, SQLite library persistence, repeat-aware daily scouting, and OpenClaw-native spec/prompt generation now work locally.
 
 ## Done in current enhancement pass
 
@@ -21,13 +21,16 @@
 - Optional `--llm` idea enrichment via OpenClaw-compatible HTTP endpoint ✅
 - `brief` command for OpenClaw-native scouting flow ✅
 - `spec` and `openclaw-prompt` commands for agent execution handoff ✅
+- Repeat-aware `daily-scout` digests with saved history ✅
+- Watchlist refresh / movers from bookmarks ✅
+- Scoped library views for recurring repos and strongest topic lanes ✅
 
 ## Next release focus
 
 - Improve repo-quality signals with commit/release-aware heuristics
 - Add richer report sections for repo-quality breakdowns and bookmarks
 - Add better LLM auth/fallback handling and prompt presets
-- Add scoped library queries (topic clusters, recurring repos, best ideas by family)
+- Add best-idea family clustering and recurring opportunity themes
 
 ## Later
 

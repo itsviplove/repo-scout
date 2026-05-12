@@ -8,7 +8,7 @@ Discover interesting public GitHub repositories and turn them into buildable pro
 
 Repo Scout is now opinionated about **trust**, **trend quality**, and **repeatable scouting** — not just raw GitHub search.
 
-As of `v0.3.0`, it also has **terminal views**, a **SQLite scouting library**, **bookmarks**, and **OpenClaw-native spec/prompt outputs**.
+As of `v0.5.0`, it also has **terminal views**, a **SQLite scouting library**, **bookmarks/watchlist workflows**, **repeat-aware daily digests**, and **OpenClaw-native spec/prompt outputs**.
 
 ## What it does
 
@@ -25,6 +25,8 @@ As of `v0.3.0`, it also has **terminal views**, a **SQLite scouting library**, *
 - Saves run history and supports diffs between scans
 - Maintains a local SQLite scouting library from saved runs
 - Supports bookmarks for repos you want to watch
+- Can refresh watchlist snapshots and rank bookmark movers from saved scouting history
+- Can surface recurring repos and strongest topic lanes from the local library
 - Loads defaults from `.repo-scout.json`
 - Can produce an OpenClaw-friendly scouting brief
 - Can generate a product spec or an OpenClaw execution prompt from a saved idea
@@ -50,7 +52,7 @@ node ./bin/repo-scout.js ideas "ai agents automation" --limit 12 --ideas 6
 - `history` — list saved runs
 - `diff` — compare two saved runs
 - `library` — inspect the SQLite scouting library
-- `bookmark` — save/list watched repos
+- `bookmark` — save/list/refresh watched repos and show movers
 - `spec` — generate a product spec from a saved idea
 - `openclaw-prompt` — generate an OpenClaw execution prompt from a saved idea
 - `config-init` — create a starter `.repo-scout.json`
@@ -62,8 +64,11 @@ node ./bin/repo-scout.js report --topic-pack agents --limit 10 --ideas 4 --out s
 node ./bin/repo-scout.js brief --topic-pack agents --limit 8 --ideas 3
 node ./bin/repo-scout.js trending --topic-pack agents --days 30 --format table
 node ./bin/repo-scout.js library top-repos --limit 10
+node ./bin/repo-scout.js library recurring-repos --limit 10
+node ./bin/repo-scout.js library topics --limit 10
 node ./bin/repo-scout.js spec --latest --idea 1
 node ./bin/repo-scout.js ideas "browser automation" --llm
+node ./bin/repo-scout.js daily-scout --style discord
 ```
 
 ## Terminal views
@@ -96,8 +101,12 @@ Use it like this:
 ```bash
 node ./bin/repo-scout.js library top-repos --limit 10
 node ./bin/repo-scout.js library ideas --limit 10
+node ./bin/repo-scout.js library recurring-repos --limit 10
+node ./bin/repo-scout.js library topics --limit 10
 node ./bin/repo-scout.js bookmark add browser-use/browser-use --note "watch this"
 node ./bin/repo-scout.js bookmark list
+node ./bin/repo-scout.js bookmark refresh --all
+node ./bin/repo-scout.js bookmark movers --limit 5
 ```
 
 Note: Node's built-in SQLite currently prints an experimental warning on some runtimes.
@@ -160,3 +169,6 @@ node ./bin/repo-scout.js ideas --topic-pack agents --llm
 - OpenClaw-friendly brief flow ✅
 - Product spec + OpenClaw prompt generation ✅
 - Optional LLM-powered summaries ✅ (best-effort endpoint mode)
+- Repeat-aware daily scouting digests ✅
+- Watchlist refresh + movers ✅
+- Library recurring-repo and topic-lane views ✅
