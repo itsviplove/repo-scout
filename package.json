@@ -1,6 +1,6 @@
 {
   "name": "repo-scout",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "GitHub Repo Scout: discover interesting repos and combine them into buildable project ideas.",
   "type": "module",
   "bin": {
@@ -16,8 +16,10 @@
     "library": "node ./bin/repo-scout.js library top-repos",
     "spec": "node ./bin/repo-scout.js spec --latest --idea 1",
     "thesis": "node ./bin/repo-scout.js thesis --latest --idea 1",
+    "memo": "node ./bin/repo-scout.js memo --type founder --latest --idea 1",
     "openclaw:prompt": "node ./bin/repo-scout.js openclaw-prompt --latest --idea 1",
     "dashboard": "node ./bin/repo-scout.js dashboard --days 60 --preview-days 7 --out ./examples/repo-scout-dashboard.html",
+    "serve": "node ./bin/repo-scout.js serve --port 4040",
     "config:init": "node ./bin/repo-scout.js config-init",
     "packs": "node ./bin/repo-scout.js packs",
     "smoke": "node ./bin/repo-scout.js ideas \"ai agents automation\" --limit 8 --ideas 3 --no-readme",

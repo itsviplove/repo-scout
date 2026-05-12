@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '1.0.0';
+const VERSION = '2.0.0';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = path.resolve(SCRIPT_DIR, '..');
 const CACHE_DIR = path.join(PROJECT_DIR, '.repo-scout-cache');
 const HISTORY_DIR = path.join(PROJECT_DIR, '.repo-scout-history');
 const HISTORY_RUNS_DIR = path.join(HISTORY_DIR, 'runs');
 const LIBRARY_DB_FILE = path.join(HISTORY_DIR, 'repo-scout.db');
+const DECISIONS_FILE = path.join(HISTORY_DIR, 'decision-log.json');
+const INCUBATOR_FILE = path.join(HISTORY_DIR, 'incubator.json');
 const DEFAULT_CONFIG_FILE = '.repo-scout.json';
 const DEFAULT_TOPICS = 'ai agents automation developer tools';
 const STOPWORDS = new Set('the a an and or of to in for with on by from is are be as at it this that into your you ai llm open source github https http com org img alt src href badge shield true false null undefined user users repo repos repository get build second first production-ready platform use using based toolkit framework'.split(' '));
@@ -98,7 +101,7 @@ const IDEA_ARCHETYPES = [
 ];
 
 function usage() {
-  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout daily-scout [--packs agents,devtools,browser] [--ideas 3] [--limit 8] [--days 30] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout weekly-scout [--days 7] [--limit 3] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout schedule-preview [--days 7] [--packs agents,devtools,browser]\n  repo-scout trending [topic] [--limit 10] [--days 30] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief|daily-scout|weekly-scout] [--topic topic] [--format full|compact|table]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout library top-repos [--limit 10] [--topic topic]\n  repo-scout library ideas [--limit 10] [--topic topic]\n  repo-scout library recurring-repos [--limit 10] [--topic topic]\n  repo-scout library topics [--limit 10]\n  repo-scout library idea-families [--limit 10] [--days 60]\n  repo-scout library opportunity-themes [--limit 10] [--days 60]\n  repo-scout library startup-opportunities [--limit 10] [--days 60]\n  repo-scout thesis [--latest] [--topic topic] [--idea 1]\n  repo-scout dashboard [--days 60] [--limit 8] [--preview-days 7] [--packs agents,devtools,browser] [--out examples/repo-scout-dashboard.html]\n  repo-scout bookmark add owner/repo [--note text]\n  repo-scout bookmark refresh owner/repo\n  repo-scout bookmark refresh --all\n  repo-scout bookmark list\n  repo-scout bookmark movers [--limit 10]\n  repo-scout spec [--latest] [--topic topic] [--idea 1]\n  repo-scout openclaw-prompt [--latest] [--topic topic] [--idea 1]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation" --format table\n  repo-scout ideas --topic-pack browser --ideas 5 --llm\n  repo-scout report --topic-pack agents --out scout-report.html\n  repo-scout brief --topic-pack devtools --llm\n  repo-scout daily-scout --ideas 3 --style discord\n  repo-scout weekly-scout --days 7 --style discord\n  repo-scout schedule-preview --days 7\n  repo-scout trending --topic-pack agents --days 14\n  repo-scout history --limit 10 --format compact\n  repo-scout diff --latest --kind report\n  repo-scout library top-repos --limit 12\n  repo-scout library recurring-repos --limit 12\n  repo-scout library idea-families --limit 8\n  repo-scout library opportunity-themes --limit 8\n  repo-scout library startup-opportunities --limit 8\n  repo-scout thesis --latest --idea 1\n  repo-scout dashboard --days 60 --preview-days 7\n  repo-scout bookmark add browser-use/browser-use --note "watch this for agent browsing"\n  repo-scout bookmark refresh --all\n  repo-scout bookmark movers --limit 5\n  repo-scout spec --latest --idea 1\n  repo-scout openclaw-prompt --latest --idea 1\n  repo-scout search "local-first knowledge" --limit 8 --min-stars 500\n  repo-scout explain browser-use/browser-use\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
+  console.log(`repo-scout v${VERSION}\n\nUsage:\n  repo-scout search [topic] [--topic-pack pack] [--limit 10] [--min-stars 100] [--language TypeScript] [--days 365] [--sort stars|updated|fresh] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout ideas [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--no-readme] [--llm] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout report [topic] [--topic-pack pack] [--limit 12] [--ideas 6] [--llm] [--out report.html]\n  repo-scout brief [topic] [--topic-pack pack] [--limit 10] [--ideas 4] [--llm] [--json] [--markdown] [--out file]\n  repo-scout memo [--type founder|investor|prd|gtm] [--latest] [--topic topic] [--idea 1]\n  repo-scout next-actions [--latest] [--topic topic] [--idea 1]\n  repo-scout export [--type founder|investor|prd|gtm|discord|json] [--latest] [--idea 1] [--out file]\n  repo-scout lane-report [--days 60] [--limit 8]\n  repo-scout daily-scout [--packs agents,devtools,browser] [--ideas 3] [--limit 8] [--days 30] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout weekly-scout [--days 7] [--limit 3] [--style plain|discord] [--json] [--markdown] [--out file]\n  repo-scout schedule-preview [--days 7] [--packs agents,devtools,browser]\n  repo-scout dashboard [--days 60] [--limit 8] [--preview-days 7] [--packs agents,devtools,browser] [--out examples/repo-scout-dashboard.html]\n  repo-scout serve [--port 4040]\n  repo-scout promote [--latest] [--topic topic] [--idea 1] [--note text] [--status incubating]\n  repo-scout incubator [--limit 20]\n  repo-scout decision list [--limit 20]\n  repo-scout decision add [--title text] [--idea text] [--status watch|approved|rejected] [--note text]\n  repo-scout trending [topic] [--limit 10] [--days 30] [--format full|compact|table] [--json] [--markdown] [--out file]\n  repo-scout history [--limit 20] [--kind search|ideas|report|brief|daily-scout|weekly-scout] [--topic topic] [--format full|compact|table]\n  repo-scout diff <oldRunId> <newRunId> [--json] [--markdown] [--out file]\n  repo-scout diff --latest [--json] [--markdown] [--kind kind] [--topic topic]\n  repo-scout explain owner/repo [--json] [--markdown] [--out file]\n  repo-scout library top-repos [--limit 10] [--topic topic]\n  repo-scout library ideas [--limit 10] [--topic topic]\n  repo-scout library recurring-repos [--limit 10] [--topic topic]\n  repo-scout library topics [--limit 10]\n  repo-scout library idea-families [--limit 10] [--days 60]\n  repo-scout library opportunity-themes [--limit 10] [--days 60]\n  repo-scout library startup-opportunities [--limit 10] [--days 60]\n  repo-scout thesis [--latest] [--topic topic] [--idea 1]\n  repo-scout bookmark add owner/repo [--note text]\n  repo-scout bookmark refresh owner/repo\n  repo-scout bookmark refresh --all\n  repo-scout bookmark list\n  repo-scout bookmark movers [--limit 10]\n  repo-scout spec [--latest] [--topic topic] [--idea 1]\n  repo-scout openclaw-prompt [--latest] [--topic topic] [--idea 1]\n  repo-scout config-init [--force]\n  repo-scout packs\n\nExamples:\n  repo-scout ideas "ai agents automation" --format table\n  repo-scout memo --type founder --latest --idea 1\n  repo-scout next-actions --latest --idea 1\n  repo-scout export --type investor --latest --idea 1\n  repo-scout lane-report --days 90\n  repo-scout dashboard --days 60 --preview-days 7\n  repo-scout serve --port 4040\n  repo-scout promote --latest --idea 1 --note "Run founder interviews first"\n  repo-scout incubator\n  repo-scout decision add --title "Workflow Coding Memory Copilot" --status watch --note "Worth validating"\n\nConfig:\n  ${DEFAULT_CONFIG_FILE} in the repo root or current working directory is loaded automatically.\n\nOptional env:\n  GITHUB_TOKEN           increases GitHub API rate limits\n  OPENCLAW_BASE_URL      optional OpenClaw/Gateway HTTP endpoint for --llm\n  OPENCLAW_GATEWAY_TOKEN optional Gateway bearer token\n  OPENCLAW_MODEL         model/agent alias for --llm (default: ${DEFAULT_LLM_MODEL})\n`);
 }
 
 function parseArgs(argv) {
@@ -212,6 +215,20 @@ async function ensureHistoryDir() {
   return HISTORY_RUNS_DIR;
 }
 
+async function readJsonOr(target, fallback) {
+  try {
+    const raw = await readFile(target, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeJson(target, value) {
+  await ensureHistoryDir();
+  await writeFile(target, JSON.stringify(value, null, 2) + '\n', 'utf8');
+}
+
 async function getLibraryDb() {
   if (!libraryDbPromise) {
     libraryDbPromise = (async () => {
@@ -263,6 +280,30 @@ async function getLibraryDb() {
           confidence REAL,
           language TEXT,
           url TEXT
+        );
+        CREATE TABLE IF NOT EXISTS decisions (
+          id TEXT PRIMARY KEY,
+          created_at TEXT,
+          title TEXT,
+          status TEXT,
+          topic TEXT,
+          idea_title TEXT,
+          note TEXT,
+          run_id TEXT,
+          opportunity_score REAL
+        );
+        CREATE TABLE IF NOT EXISTS incubator (
+          id TEXT PRIMARY KEY,
+          created_at TEXT,
+          title TEXT,
+          status TEXT,
+          topic TEXT,
+          run_id TEXT,
+          idea_key TEXT,
+          idea_title TEXT,
+          thesis_summary TEXT,
+          opportunity_score REAL,
+          note TEXT
         );
       `);
       return db;
@@ -1671,13 +1712,20 @@ function extractJsonBlock(text = '') {
   return text.trim();
 }
 
+function resolveLlmConfig(opts = {}) {
+  const baseUrl = String(opts['openclaw-base-url'] || process.env.OPENCLAW_BASE_URL || '').trim();
+  const model = String(opts['openclaw-model'] || process.env.OPENCLAW_MODEL || DEFAULT_LLM_MODEL).trim();
+  const token = String(opts['openclaw-gateway-token'] || process.env.OPENCLAW_GATEWAY_TOKEN || '').trim();
+  return { baseUrl, model, token };
+}
+
 async function maybeEnrichIdeasWithLlm(topic, profiles, ideas, opts = {}) {
   if (!opts.llm) return { ideas, llmMeta: null };
-  const baseUrl = String(opts['openclaw-base-url'] || process.env.OPENCLAW_BASE_URL || '').trim();
+  const { baseUrl, model, token } = resolveLlmConfig(opts);
   if (!baseUrl) {
     return {
       ideas,
-      llmMeta: { ok: false, reason: 'OPENCLAW_BASE_URL not set; skipped LLM enrichment.' }
+      llmMeta: { ok: false, reason: 'OPENCLAW_BASE_URL not set; skipped LLM enrichment. Add OPENCLAW_BASE_URL (and OPENCLAW_GATEWAY_TOKEN if needed).' }
     };
   }
 
@@ -1706,10 +1754,10 @@ async function maybeEnrichIdeasWithLlm(topic, profiles, ideas, opts = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(process.env.OPENCLAW_GATEWAY_TOKEN ? { Authorization: `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
-      model: opts['openclaw-model'] || process.env.OPENCLAW_MODEL || DEFAULT_LLM_MODEL,
+      model,
       messages: [
         { role: 'system', content: 'You are improving startup/research idea briefs. Return only strict JSON.' },
         { role: 'user', content: `Sharpen these repo-scout ideas. Return a JSON array with one item per idea, preserving index and key. For each item include: index, key, title, pitch, marketAngle, risk, differentiation, difficulty. Keep each field short, concrete, and non-hype. Input: ${JSON.stringify(prompt)}` }
@@ -1721,7 +1769,8 @@ async function maybeEnrichIdeasWithLlm(topic, profiles, ideas, opts = {}) {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    return { ideas, llmMeta: { ok: false, reason: `LLM enrichment failed: ${res.status} ${body.slice(0, 160)}` } };
+    const authHint = res.status === 401 ? ' Check OPENCLAW_GATEWAY_TOKEN or gateway auth.' : '';
+    return { ideas, llmMeta: { ok: false, reason: `LLM enrichment failed: ${res.status} ${body.slice(0, 160)}${authHint}` } };
   }
 
   const data = await res.json();
@@ -1750,6 +1799,16 @@ async function maybeEnrichIdeasWithLlm(topic, profiles, ideas, opts = {}) {
     };
   });
   return { ideas: enriched, llmMeta: { ok: true, reason: 'Ideas enriched via OpenClaw-compatible LLM endpoint.' } };
+}
+
+async function buildIdeasPayload(topic, opts = {}) {
+  const profiles = await collectProfiles(topic, opts);
+  const generated = generateIdeas(profiles, n(opts.ideas, 6), topic);
+  const trending = await collectTrendingRepos({ limit: Math.max(8, n(opts.limit, 12)), topic, days: n(opts.days, 30) });
+  const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
+  const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
+  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
+  return { topic, profiles, ideas, trending, llmMeta };
 }
 
 function buildScoutBrief(topic, profiles, ideas, trending = [], llmMeta = null) {
@@ -2220,6 +2279,59 @@ async function bookmarkMovers({ limit = 10 } = {}) {
     .slice(0, limit);
 }
 
+async function addDecision(entry = {}) {
+  const db = await getLibraryDb();
+  const id = entry.id || buildRunId('decision', entry.title || entry.ideaTitle || 'decision');
+  const record = {
+    id,
+    createdAt: entry.createdAt || new Date().toISOString(),
+    title: entry.title || entry.ideaTitle || 'Untitled decision',
+    status: entry.status || 'watch',
+    topic: entry.topic || '',
+    ideaTitle: entry.ideaTitle || '',
+    note: entry.note || '',
+    runId: entry.runId || '',
+    opportunityScore: Number(entry.opportunityScore || 0),
+  };
+  db.prepare(`INSERT OR REPLACE INTO decisions
+    (id, created_at, title, status, topic, idea_title, note, run_id, opportunity_score)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(record.id, record.createdAt, record.title, record.status, record.topic, record.ideaTitle, record.note, record.runId, record.opportunityScore);
+  return record;
+}
+
+async function listDecisions({ limit = 20 } = {}) {
+  const db = await getLibraryDb();
+  return db.prepare(`SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?`).all(limit).map(row => ({ ...row }));
+}
+
+async function promoteIdea(run, idea, note = '', status = 'incubating') {
+  const db = await getLibraryDb();
+  const record = {
+    id: buildRunId('incubator', idea.title),
+    createdAt: new Date().toISOString(),
+    title: idea.title,
+    status,
+    topic: run.topic || '',
+    runId: run.id,
+    ideaKey: idea.key || '',
+    ideaTitle: idea.title,
+    thesisSummary: idea.startupThesis?.summary || '',
+    opportunityScore: Number(idea.scores?.opportunity || 0),
+    note: note || '',
+  };
+  db.prepare(`INSERT OR REPLACE INTO incubator
+    (id, created_at, title, status, topic, run_id, idea_key, idea_title, thesis_summary, opportunity_score, note)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(record.id, record.createdAt, record.title, record.status, record.topic, record.runId, record.ideaKey, record.ideaTitle, record.thesisSummary, record.opportunityScore, record.note);
+  return record;
+}
+
+async function listIncubator({ limit = 20 } = {}) {
+  const db = await getLibraryDb();
+  return db.prepare(`SELECT * FROM incubator ORDER BY created_at DESC LIMIT ?`).all(limit).map(row => ({ ...row }));
+}
+
 async function latestIdeaRun(topic = '') {
   const entries = await listRunHistory({ limit: 50, kind: 'ideas', topic });
   if (!entries.length) throw new Error('No saved idea runs available yet. Run `repo-scout ideas` first.');
@@ -2230,6 +2342,12 @@ function pickIdeaFromRun(run, opts = {}) {
   const index = Math.max(1, n(opts.idea, 1)) - 1;
   const idea = run.ideas?.[index];
   if (!idea) throw new Error(`Idea ${index + 1} not found in run ${run.id}.`);
+  return idea;
+}
+
+function pickIdeaByKey(run, key = '') {
+  const idea = (run.ideas || []).find(item => item.key === key || item.title === key);
+  if (!idea) throw new Error(`Idea ${key} not found in run ${run.id}.`);
   return idea;
 }
 
@@ -2361,6 +2479,145 @@ function buildStartupThesisMarkdown(idea, run) {
   ].join('\n');
 }
 
+function buildNextActions(idea, run) {
+  const thesis = idea.startupThesis || buildStartupThesis(idea);
+  return [
+    `Validate the ICP: ${thesis.targetUser || 'target users'} with 3-5 concrete conversations or workflow walk-throughs.`,
+    `Prototype the wedge: ${thesis.wedge || 'ship one narrow end-to-end workflow'}.`,
+    `Use repos ${((idea.repos || []).map(repo => repo.name).join(', ')) || 'from the source set'} to prove the core workflow before broadening scope.`,
+    `Define one measurable success metric for the first milestone: ${thesis.firstMilestone || 'ship the first narrow flow'}.`,
+    `Document the top risk and mitigation: ${idea.risk || 'differentiate clearly and avoid sprawl.'}`,
+  ];
+}
+
+function buildFounderMemo(idea, run, type = 'founder') {
+  const thesis = idea.startupThesis || buildStartupThesis(idea);
+  const nextActions = buildNextActions(idea, run);
+  const common = [
+    `# ${titleCase(type)} Memo: ${idea.title}`,
+    '',
+    `- Topic: ${run.topic}`,
+    `- Opportunity score: ${idea.scores?.opportunity || 'n/a'}/10 (${idea.opportunityVerdict || 'n/a'})`,
+    `- Theme: ${idea.opportunityTheme || 'n/a'}`,
+    `- Source repos: ${(idea.repos || []).map(repo => repo.name).join(', ')}`,
+    '',
+  ];
+  if (type === 'investor') {
+    return common.concat([
+      '## Why this matters',
+      thesis.summary || 'n/a',
+      '',
+      '## Why now',
+      thesis.whyNow || 'n/a',
+      '',
+      '## ICP and motion',
+      `ICP: ${thesis.targetUser || 'n/a'}`,
+      `Motion: ${thesis.launchMotion || 'n/a'}`,
+      '',
+      '## Moat',
+      thesis.moat || 'n/a',
+      '',
+      '## Risks',
+      idea.risk || 'n/a',
+    ]).join('\n');
+  }
+  if (type === 'prd') {
+    return common.concat([
+      '## Product goal',
+      thesis.summary || 'n/a',
+      '',
+      '## User and pain',
+      `User: ${thesis.targetUser || 'n/a'}`,
+      `Pain: ${thesis.painPoint || 'n/a'}`,
+      '',
+      '## MVP',
+      ...((idea.mvp || []).map(item => `- ${item}`)),
+      '',
+      '## Roadmap',
+      ...nextActions.map(item => `- ${item}`),
+    ]).join('\n');
+  }
+  if (type === 'gtm') {
+    return common.concat([
+      '## Positioning',
+      thesis.summary || 'n/a',
+      '',
+      '## ICP',
+      thesis.targetUser || 'n/a',
+      '',
+      '## Launch wedge',
+      thesis.wedge || 'n/a',
+      '',
+      '## Business model',
+      thesis.businessModel || 'n/a',
+      '',
+      '## Next actions',
+      ...nextActions.map(item => `- ${item}`),
+    ]).join('\n');
+  }
+  return common.concat([
+    '## Thesis',
+    thesis.summary || 'n/a',
+    '',
+    '## Why now',
+    thesis.whyNow || 'n/a',
+    '',
+    '## Wedge and moat',
+    `Wedge: ${thesis.wedge || 'n/a'}`,
+    `Moat: ${thesis.moat || 'n/a'}`,
+    '',
+    '## Immediate next actions',
+    ...nextActions.map(item => `- ${item}`),
+  ]).join('\n');
+}
+
+async function buildMarketLaneReport({ days = 60, limit = 8 } = {}) {
+  const [themes, opportunities, recurringRepos, families] = await Promise.all([
+    libraryOpportunityThemes({ limit, days }),
+    libraryStartupOpportunities({ limit, days }),
+    libraryRecurringRepos({ limit }),
+    libraryIdeaFamilies({ limit, days }),
+  ]);
+  return {
+    days,
+    themes,
+    opportunities,
+    recurringRepos,
+    families,
+  };
+}
+
+async function buildWorkspaceSummary({ days = 60, limit = 8, packs = [] } = {}) {
+  const [topOpportunities, recurringRepos, opportunityThemes, ideaFamilies, recentRuns, incubator, decisions] = await Promise.all([
+    libraryStartupOpportunities({ limit, days }),
+    libraryRecurringRepos({ limit }),
+    libraryOpportunityThemes({ limit, days }),
+    libraryIdeaFamilies({ limit, days }),
+    listRunHistory({ limit: Math.max(12, limit) }),
+    listIncubator({ limit }),
+    listDecisions({ limit }),
+  ]);
+  const fallbackIdeas = recentRuns.flatMap(run => (run.topIdeas || []).map(idea => ({
+    opportunity: idea.title,
+    appearances: 1,
+    avgOpportunity: round(Number(idea.score || 0)),
+    avgOverall: round(Number(idea.score || 0)),
+    lastSeen: run.createdAt,
+    examples: idea.title,
+  })));
+  return {
+    generatedAt: new Date().toISOString(),
+    topOpportunities: topOpportunities.length ? topOpportunities : fallbackIdeas.slice(0, limit),
+    recurringRepos,
+    opportunityThemes,
+    ideaFamilies,
+    recentRuns,
+    incubator,
+    decisions,
+    schedule: buildSchedulePreview({ days: Math.max(5, Math.min(14, days)), packs }),
+  };
+}
+
 function buildDashboardHtml(summary = {}) {
   const topOpportunities = summary.topOpportunities || [];
   const recurringRepos = summary.recurringRepos || [];
@@ -2436,6 +2693,178 @@ function buildDashboardHtml(summary = {}) {
       ${recentRuns.length ? `<table><thead><tr><th>Run</th><th>Kind</th><th>Topic</th><th>Ideas</th><th>Created</th></tr></thead><tbody>${recentRuns.map(run => `<tr><td>${escapeHtml(run.id)}</td><td>${escapeHtml(run.kind)}</td><td>${escapeHtml(run.topic)}</td><td>${run.ideaCount}</td><td>${escapeHtml(run.createdAt)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">No recent runs yet.</p>'}
     </section>
   </div>
+</body>
+</html>`;
+}
+
+function jsonResponse(res, status, payload) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function textResponse(res, status, text, contentType = 'text/plain; charset=utf-8') {
+  res.writeHead(status, { 'Content-Type': contentType });
+  res.end(text);
+}
+
+function buildWebAppHtml() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repo Scout Web</title>
+  <style>
+    :root { color-scheme: dark; --bg:#07101e; --panel:#101b33; --panel2:#0d152a; --text:#edf2ff; --muted:#9eb0d2; --accent:#7dd3fc; --good:#86efac; --warn:#fde68a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; background:linear-gradient(180deg,#07101e,#0d1833 60%,#07101e); color:var(--text); }
+    .wrap { max-width:1280px; margin:0 auto; padding:24px 16px 48px; }
+    .hero,.panel { background:rgba(16,27,51,.92); border:1px solid rgba(158,176,210,.14); border-radius:18px; box-shadow:0 14px 36px rgba(0,0,0,.22); }
+    .hero { padding:22px; margin-bottom:16px; }
+    .panel { padding:16px; margin-bottom:16px; }
+    h1,h2,h3,p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .cols { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .stats { grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-top:16px; }
+    .stat,.card { background:var(--panel2); border-radius:14px; padding:14px; border:1px solid rgba(158,176,210,.08); }
+    .num { font-size:28px; font-weight:700; }
+    input,select,button,textarea { width:100%; padding:10px 12px; border-radius:12px; border:1px solid rgba(158,176,210,.16); background:#0b1325; color:var(--text); }
+    button { cursor:pointer; background:linear-gradient(180deg,#1d4ed8,#1d3fa8); border:none; font-weight:600; }
+    button.secondary { background:#152542; }
+    .row { display:grid; gap:10px; grid-template-columns:2fr 1fr 1fr auto; }
+    .row > * { align-self:end; }
+    .idea { padding:14px; border-radius:14px; background:#0b1325; margin-bottom:12px; border:1px solid rgba(158,176,210,.12); }
+    .tag { display:inline-block; padding:4px 8px; border-radius:999px; background:rgba(125,211,252,.12); margin:4px 6px 0 0; font-size:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { text-align:left; padding:10px 8px; border-bottom:1px solid rgba(158,176,210,.12); vertical-align:top; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    pre { white-space:pre-wrap; background:#0b1325; border:1px solid rgba(158,176,210,.12); border-radius:12px; padding:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Repo Scout Web</h1>
+      <p class="muted">Run scouting from a browser, review opportunities, and manage your founder pipeline.</p>
+      <div class="grid stats" id="stats"></div>
+    </section>
+    <section class="panel">
+      <h2>Run a scout</h2>
+      <div class="row">
+        <div><label>Topic or topic pack</label><input id="topic" value="ai agents automation" /></div>
+        <div><label>Limit</label><input id="limit" type="number" value="8" /></div>
+        <div><label>Ideas</label><input id="ideas" type="number" value="3" /></div>
+        <div><button id="runScout">Run</button></div>
+      </div>
+      <p class="muted" id="status">Ready.</p>
+      <div id="ideasOut"></div>
+    </section>
+    <section class="grid cols">
+      <article class="panel"><h2>Incubator</h2><div id="incubator"></div></article>
+      <article class="panel"><h2>Decision log</h2><div id="decisions"></div></article>
+    </section>
+    <section class="grid cols">
+      <article class="panel"><h2>Top opportunities</h2><div id="opportunities"></div></article>
+      <article class="panel"><h2>Market lanes</h2><div id="lanes"></div></article>
+    </section>
+    <section class="panel">
+      <h2>Detail view</h2>
+      <p class="muted">Click thesis, memo, or next actions on any idea to inspect the generated founder material here.</p>
+      <pre id="detailContent">Nothing selected yet.</pre>
+    </section>
+  </div>
+  <script>
+    async function getJson(url, options) {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+    function renderStats(summary) {
+      const stats = [
+        ['Top opportunities', summary.topOpportunities.length],
+        ['Recurring repos', summary.recurringRepos.length],
+        ['Incubator ideas', summary.incubator.length],
+        ['Decisions', summary.decisions.length]
+      ];
+      document.getElementById('stats').innerHTML = stats.map(function (item) {
+        return '<div class="stat"><div class="num">' + item[1] + '</div><div class="muted">' + item[0] + '</div></div>';
+      }).join('');
+    }
+    function renderSummary(summary) {
+      renderStats(summary);
+      document.getElementById('incubator').innerHTML = summary.incubator.length ? summary.incubator.map(function (item) {
+        return '<div class="card"><strong>' + (item.idea_title || item.title) + '</strong><div class="muted">' + item.status + ' · score ' + (item.opportunity_score || 'n/a') + '</div><p>' + (item.thesis_summary || item.note || '') + '</p></div>';
+      }).join('') : '<p class="muted">Nothing promoted yet.</p>';
+      document.getElementById('decisions').innerHTML = summary.decisions.length ? summary.decisions.map(function (item) {
+        return '<div class="card"><strong>' + item.title + '</strong><div class="muted">' + item.status + '</div><p>' + (item.note || '') + '</p></div>';
+      }).join('') : '<p class="muted">No decisions logged yet.</p>';
+      document.getElementById('opportunities').innerHTML = summary.topOpportunities.length ? summary.topOpportunities.map(function (item) {
+        return '<div class="card"><strong>' + item.opportunity + '</strong><div class="muted">avg opportunity ' + item.avgOpportunity + '/10 · seen ' + item.appearances + 'x</div><p>' + item.examples + '</p></div>';
+      }).join('') : '<p class="muted">No opportunities yet.</p>';
+      document.getElementById('lanes').innerHTML = summary.opportunityThemes.length ? '<table><thead><tr><th>Theme</th><th>Hits</th><th>Avg</th></tr></thead><tbody>' + summary.opportunityThemes.map(function (item) {
+        return '<tr><td>' + item.theme + '</td><td>' + item.appearances + '</td><td>' + item.avgOverall + '/10</td></tr>';
+      }).join('') + '</tbody></table>' : '<p class="muted">No lane data yet.</p>';
+    }
+    function esc(text) {
+      return String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function ideaCard(idea, index) {
+      const tags = [idea.opportunityTheme, ((idea.scores && idea.scores.opportunity) || 'n/a') + '/10 ' + (idea.opportunityVerdict || '')].filter(Boolean).map(function (tag) {
+        return '<span class="tag">' + esc(tag) + '</span>';
+      }).join('');
+      const nextActions = (idea.nextActions || []).map(function (item) { return '<li>' + esc(item) + '</li>'; }).join('');
+      return '<div class="idea"><h3>' + (index + 1) + '. ' + esc(idea.title) + '</h3>' + tags + '<p><strong>Pitch:</strong> ' + esc(idea.pitch) + '</p><p><strong>Thesis:</strong> ' + esc((idea.startupThesis && idea.startupThesis.summary) || '') + '</p><p><strong>Why unique:</strong> ' + esc(idea.whyUnique || '') + '</p><details><summary>Next actions</summary><ul>' + nextActions + '</ul></details><div class="actions"><button onclick="viewThesis(' + JSON.stringify(idea.key) + ')">Thesis</button><button class="secondary" onclick="viewMemo(' + JSON.stringify(idea.key) + ',\'founder\')">Founder Memo</button><button class="secondary" onclick="viewMemo(' + JSON.stringify(idea.key) + ',\'investor\')">Investor Memo</button><button class="secondary" onclick="viewActions(' + JSON.stringify(idea.key) + ')">Next Actions</button><button onclick="promoteIdea(' + JSON.stringify(idea.key) + ')">Promote</button><button class="secondary" onclick="logDecision(' + JSON.stringify(idea.title) + ')">Log decision</button></div></div>';
+    }
+    let latestRun = null;
+    async function refreshSummary() {
+      const summary = await getJson('/api/summary');
+      renderSummary(summary);
+    }
+    async function runScout() {
+      const topic = encodeURIComponent(document.getElementById('topic').value.trim());
+      const limit = encodeURIComponent(document.getElementById('limit').value);
+      const ideas = encodeURIComponent(document.getElementById('ideas').value);
+      document.getElementById('status').textContent = 'Running scout...';
+      const payload = await getJson('/api/ideas?topic=' + topic + '&limit=' + limit + '&ideas=' + ideas + '&noReadme=1');
+      latestRun = payload.run;
+      document.getElementById('ideasOut').innerHTML = payload.ideas.map(ideaCard).join('');
+      document.getElementById('status').textContent = 'Analyzed ' + payload.repos.length + ' repos for ' + payload.topic + '.';
+    }
+    function showDetail(text) {
+      document.getElementById('detailContent').textContent = text || 'Nothing selected yet.';
+    }
+    async function viewThesis(ideaKey) {
+      if (!latestRun) return alert('Run a scout first.');
+      const payload = await getJson('/api/thesis?runId=' + encodeURIComponent(latestRun.id) + '&ideaKey=' + encodeURIComponent(ideaKey));
+      showDetail(payload.text);
+    }
+    async function viewMemo(ideaKey, type) {
+      if (!latestRun) return alert('Run a scout first.');
+      const payload = await getJson('/api/memo?runId=' + encodeURIComponent(latestRun.id) + '&ideaKey=' + encodeURIComponent(ideaKey) + '&type=' + encodeURIComponent(type));
+      showDetail(payload.text);
+    }
+    async function viewActions(ideaKey) {
+      if (!latestRun) return alert('Run a scout first.');
+      const payload = await getJson('/api/next-actions?runId=' + encodeURIComponent(latestRun.id) + '&ideaKey=' + encodeURIComponent(ideaKey));
+      showDetail(payload.items.join('\n'));
+    }
+    async function promoteIdea(ideaKey) {
+      if (!latestRun) return alert('Run a scout first.');
+      await getJson('/api/promote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runId: latestRun.id, ideaKey: ideaKey }) });
+      await refreshSummary();
+      alert('Promoted to incubator.');
+    }
+    async function logDecision(title) {
+      const note = prompt('Decision note for ' + title + ':', 'Worth incubating after 3 founder conversations.');
+      if (note === null) return;
+      await getJson('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, status: 'watch', note: note }) });
+      await refreshSummary();
+      alert('Decision logged.');
+    }
+    document.getElementById('runScout').addEventListener('click', runScout);
+    refreshSummary().catch(function (err) { document.getElementById('status').textContent = err.message; });
+  </script>
 </body>
 </html>`;
 }
@@ -2727,13 +3156,7 @@ async function cmdSearch(opts) {
 
 async function cmdIdeas(opts) {
   const topic = resolveTopic(opts);
-  const profiles = await collectProfiles(topic, opts);
-  const maxIdeas = n(opts.ideas, 6);
-  const generated = generateIdeas(profiles, maxIdeas, topic);
-  const trending = await collectTrendingRepos({ limit: 20, topic, days: n(opts.days, 30) });
-  const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
-  const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
+  const { profiles, ideas, llmMeta, trending } = await buildIdeasPayload(topic, opts);
   if (!ideas.length) {
     console.log('No strong combinations found. Try a broader topic or lower --min-stars.');
     return;
@@ -2767,12 +3190,7 @@ async function cmdIdeas(opts) {
 
 async function cmdReport(opts) {
   const topic = resolveTopic(opts);
-  const profiles = await collectProfiles(topic, opts);
-  const generated = generateIdeas(profiles, n(opts.ideas, 6), topic);
-  const trending = await collectTrendingRepos({ limit: 8, topic, days: n(opts.days, 30) });
-  const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
-  const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
+  const { profiles, ideas, llmMeta, trending } = await buildIdeasPayload(topic, opts);
   if (!ideas.length) throw new Error('No strong combinations found. Try a broader topic or lower --min-stars.');
   const file = path.resolve(process.cwd(), opts.out || `repo-scout-report-${slugify(topic)}.html`);
   const previous = await latestRunFor('report', topic);
@@ -2809,12 +3227,7 @@ async function cmdReport(opts) {
 
 async function cmdBrief(opts) {
   const topic = resolveTopic(opts);
-  const profiles = await collectProfiles(topic, opts);
-  const generated = generateIdeas(profiles, n(opts.ideas, 4), topic);
-  const trending = await collectTrendingRepos({ limit: 6, topic, days: n(opts.days, 30) });
-  const withUniqueness = await enrichIdeasWithUniqueness(topic, generated, trending);
-  const { ideas: llmIdeas, llmMeta } = await maybeEnrichIdeasWithLlm(topic, profiles, withUniqueness, opts);
-  const ideas = finalRankIdeas(await attachIdeaHistoryInsights(llmIdeas, opts));
+  const { profiles, ideas, llmMeta, trending } = await buildIdeasPayload(topic, { ...opts, ideas: n(opts.ideas, 4) });
   const brief = buildScoutBrief(topic, profiles, ideas, trending, llmMeta);
   const run = {
     id: buildRunId('brief', topic),
@@ -2908,16 +3321,156 @@ async function cmdSchedulePreview(opts) {
 
 async function cmdDashboard(opts) {
   const outFile = path.resolve(process.cwd(), opts.out || '.\\examples\\repo-scout-dashboard.html');
-  const [topOpportunities, recurringRepos, opportunityThemes, ideaFamilies, recentRuns] = await Promise.all([
-    libraryStartupOpportunities({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
-    libraryRecurringRepos({ limit: n(opts.limit, 8), topic: opts.topic || '' }),
-    libraryOpportunityThemes({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
-    libraryIdeaFamilies({ limit: n(opts.limit, 8), days: n(opts.days, 60) }),
-    listRunHistory({ limit: n(opts.limit, 12) }),
-  ]);
-  const schedule = buildSchedulePreview({ days: n(opts.previewDays || opts.days, 7), packs: csvList(opts.packs || '') });
-  await writeFile(outFile, buildDashboardHtml({ topOpportunities, recurringRepos, opportunityThemes, ideaFamilies, recentRuns, schedule }), 'utf8');
+  const summary = await buildWorkspaceSummary({ days: n(opts.days, 60), limit: n(opts.limit, 8), packs: csvList(opts.packs || '') });
+  summary.schedule = buildSchedulePreview({ days: n(opts.previewDays || opts.days, 7), packs: csvList(opts.packs || '') });
+  await writeFile(outFile, buildDashboardHtml(summary), 'utf8');
   console.log(`Wrote dashboard to ${outFile}`);
+}
+
+async function cmdNextActions(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
+  console.log(`\n# Next Actions: ${idea.title}\n`);
+  buildNextActions(idea, run).forEach((item, index) => console.log(`${index + 1}. ${item}`));
+  console.log('');
+}
+
+async function cmdMemo(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
+  console.log(`\n${buildFounderMemo(idea, run, String(opts.type || 'founder').toLowerCase())}\n`);
+}
+
+async function cmdLaneReport(opts) {
+  const report = await buildMarketLaneReport({ days: n(opts.days, 60), limit: n(opts.limit, 8) });
+  console.log(`\n# Repo Scout Market Lane Report (${report.days} days)\n`);
+  console.log('## Opportunities');
+  report.opportunities.forEach((item, index) => console.log(`${index + 1}. ${item.opportunity} · avg opportunity ${item.avgOpportunity}/10 · hits ${item.appearances}`));
+  console.log('\n## Themes');
+  report.themes.forEach((item, index) => console.log(`${index + 1}. ${item.theme} · avg ${item.avgOverall}/10 · hits ${item.appearances}`));
+  console.log('');
+}
+
+async function cmdPromote(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
+  const record = await promoteIdea(run, idea, opts.note || '', String(opts.status || 'incubating'));
+  console.log(`Promoted ${record.ideaTitle} to incubator (${record.status}).`);
+}
+
+async function cmdIncubator(opts) {
+  console.table(await listIncubator({ limit: n(opts.limit, 20) }));
+}
+
+async function cmdDecision(opts) {
+  const mode = String(opts._[0] || 'list').toLowerCase();
+  if (mode === 'add') {
+    const title = opts.title || opts.idea || opts._[1] || 'Untitled decision';
+    const record = await addDecision({
+      title,
+      ideaTitle: opts.idea || title,
+      status: opts.status || 'watch',
+      topic: opts.topic || '',
+      note: opts.note || '',
+      runId: opts.runId || '',
+      opportunityScore: opts.score || 0,
+    });
+    console.log(`Logged decision: ${record.title} (${record.status})`);
+    return;
+  }
+  console.table(await listDecisions({ limit: n(opts.limit, 20) }));
+}
+
+async function cmdExport(opts) {
+  const run = await latestIdeaRun(opts.topic || '');
+  const idea = applyOpportunityScoring(pickIdeaFromRun(run, opts));
+  const type = String(opts.type || 'founder').toLowerCase();
+  const outFile = path.resolve(process.cwd(), opts.out || `./examples/${slugify(idea.title)}-${type}.md`);
+  let content = '';
+  if (type === 'json') content = JSON.stringify({ run, idea, nextActions: buildNextActions(idea, run) }, null, 2);
+  else if (type === 'discord') content = formatDailyScoutText({ generatedAt: new Date().toISOString(), packs: [run.topic], ideas: [idea], repetitive: false, suggestedPacks: [] }, 'discord');
+  else content = buildFounderMemo(idea, run, type);
+  await writeFile(outFile, content + '\n', 'utf8');
+  console.log(`Wrote export to ${outFile}`);
+}
+
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString('utf8').trim();
+  return raw ? JSON.parse(raw) : {};
+}
+
+async function cmdServe(opts) {
+  const port = n(opts.port, 4040);
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
+      if (req.method === 'GET' && url.pathname === '/') {
+        return textResponse(res, 200, buildWebAppHtml(), 'text/html; charset=utf-8');
+      }
+      if (req.method === 'GET' && url.pathname === '/api/summary') {
+        const summary = await buildWorkspaceSummary({ days: n(url.searchParams.get('days'), 60), limit: n(url.searchParams.get('limit'), 8) });
+        return jsonResponse(res, 200, summary);
+      }
+      if (req.method === 'GET' && url.pathname === '/api/ideas') {
+        const apiOpts = {
+          limit: n(url.searchParams.get('limit'), 8),
+          ideas: n(url.searchParams.get('ideas'), 3),
+          'no-readme': ['1', 'true', 'yes'].includes(String(url.searchParams.get('noReadme') || '').toLowerCase()),
+          llm: ['1', 'true', 'yes'].includes(String(url.searchParams.get('llm') || '').toLowerCase()),
+          days: n(url.searchParams.get('days'), 30),
+        };
+        const topic = url.searchParams.get('topic') || resolveTopic({});
+        const payload = await buildIdeasPayload(topic, apiOpts);
+        const run = {
+          id: buildRunId('ideas', topic),
+          createdAt: new Date().toISOString(),
+          kind: 'ideas',
+          topic,
+          command: 'ideas',
+          opts: pickRunOpts(apiOpts),
+          profiles: payload.profiles.map(normalizeRepoForHistory),
+          ideas: payload.ideas.map(normalizeIdeaForHistory),
+          output: 'web',
+          llmMeta: payload.llmMeta,
+        };
+        await saveRunHistory(run);
+        return jsonResponse(res, 200, { ...payload, run, ideas: payload.ideas.map(idea => ({ ...idea, nextActions: buildNextActions(idea, run) })) });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/thesis') {
+        const run = await loadRunHistory(String(url.searchParams.get('runId') || ''));
+        const idea = applyOpportunityScoring(pickIdeaByKey(run, String(url.searchParams.get('ideaKey') || '')));
+        return jsonResponse(res, 200, { text: buildStartupThesisMarkdown(idea, run) });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/memo') {
+        const run = await loadRunHistory(String(url.searchParams.get('runId') || ''));
+        const idea = applyOpportunityScoring(pickIdeaByKey(run, String(url.searchParams.get('ideaKey') || '')));
+        return jsonResponse(res, 200, { text: buildFounderMemo(idea, run, String(url.searchParams.get('type') || 'founder').toLowerCase()) });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/next-actions') {
+        const run = await loadRunHistory(String(url.searchParams.get('runId') || ''));
+        const idea = applyOpportunityScoring(pickIdeaByKey(run, String(url.searchParams.get('ideaKey') || '')));
+        return jsonResponse(res, 200, { items: buildNextActions(idea, run) });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/promote') {
+        const body = await readBody(req);
+        const run = await loadRunHistory(body.runId);
+        const idea = applyOpportunityScoring(pickIdeaByKey(run, body.ideaKey));
+        return jsonResponse(res, 200, await promoteIdea(run, idea, body.note || '', body.status || 'incubating'));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/decision') {
+        const body = await readBody(req);
+        return jsonResponse(res, 200, await addDecision({ title: body.title, ideaTitle: body.ideaTitle || body.title, status: body.status || 'watch', note: body.note || '', topic: body.topic || '', runId: body.runId || '', opportunityScore: body.opportunityScore || 0 }));
+      }
+      return jsonResponse(res, 404, { error: 'Not found' });
+    } catch (error) {
+      return jsonResponse(res, 500, { error: error.message || String(error) });
+    }
+  });
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Repo Scout web running at http://127.0.0.1:${port}`);
+  });
 }
 
 async function cmdTrending(opts) {
@@ -3126,6 +3679,13 @@ async function main() {
     if (cmd === 'bookmark') return await cmdBookmark(opts);
     if (cmd === 'spec') return await cmdSpec(opts);
     if (cmd === 'thesis') return await cmdThesis(opts);
+    if (cmd === 'memo') return await cmdMemo(opts);
+    if (cmd === 'next-actions') return await cmdNextActions(opts);
+    if (cmd === 'export') return await cmdExport(opts);
+    if (cmd === 'lane-report') return await cmdLaneReport(opts);
+    if (cmd === 'promote') return await cmdPromote(opts);
+    if (cmd === 'incubator') return await cmdIncubator(opts);
+    if (cmd === 'decision') return await cmdDecision(opts);
     if (cmd === 'openclaw-prompt') return await cmdOpenClawPrompt(opts);
     if (cmd === 'search') return await cmdSearch(opts);
     if (cmd === 'ideas') return await cmdIdeas(opts);
@@ -3135,6 +3695,7 @@ async function main() {
     if (cmd === 'weekly-scout') return await cmdWeeklyScout(opts);
     if (cmd === 'schedule-preview') return await cmdSchedulePreview(opts);
     if (cmd === 'dashboard') return await cmdDashboard(opts);
+    if (cmd === 'serve') return await cmdServe(opts);
     if (cmd === 'trending') return await cmdTrending(opts);
     if (cmd === 'history') return await cmdHistory(opts);
     if (cmd === 'diff') return await cmdDiff(opts);
